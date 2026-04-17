@@ -93,11 +93,13 @@ async function startServer() {
 
   // SSE endpoint for live streaming ReAct loop
   app.post("/api/agent/stream", async (req, res) => {
-    const { objective } = req.body;
+    const { objective, provider } = req.body;
     
     if (!objective) {
       return res.status(400).json({ error: "Missing objective" });
     }
+
+    const finalProvider = provider || 'gemini'; // default fallback
 
     // Set headers for SSE
     res.setHeader("Content-Type", "text/event-stream");
@@ -109,11 +111,11 @@ async function startServer() {
     };
 
     try {
-      sendEvent('system', `Starting genuine Agent Swarm for objective: "${objective}"`);
+      sendEvent('system', `Starting genuine Agent Swarm via [${finalProvider.toUpperCase()}] Gateway for objective: "${objective}"`);
       
       await runRealAgent(objective, (type, text) => {
         sendEvent(type, text);
-      });
+      }, 0, finalProvider);
       
       sendEvent('system', `Agent execution correctly finalized.`);
     } catch (e: any) {

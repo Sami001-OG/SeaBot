@@ -4,8 +4,11 @@ import { Zap, Play, Terminal, Database, Code, Globe, ArrowRight } from "lucide-r
 export function WorkflowView() {
 
   const triggerWorkflow = async (prompt: string) => {
-     // A native UI would hook this directly into the real agent's execution queue.
-     alert(`Automation pipeline triggered: "${prompt}"\n\n(View progress in the Command Center)`);
+     // Store the workflow prompt and trigger an event to physically flip to the Command Center
+     localStorage.setItem("seabot-pending-workflow", prompt);
+     // Reload to let App loop and mount CommandCenter automatically 
+     // (or we can just dispatch a custom event, but a quick reload works beautifully in this SPA shell for the demo)
+     window.location.reload();
   };
 
   const pipelines = [
@@ -85,14 +88,14 @@ export function WorkflowView() {
 
             <button 
               onClick={() => triggerWorkflow(pipe.prompt)}
-              className="w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-accent hover:text-white border border-border-default hover:border-accent text-text-main py-3 rounded-lg text-sm font-semibold transition-all"
+              className="w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-accent hover:text-white border border-border-default hover:border-accent text-text-main py-3 rounded-lg text-sm font-semibold transition-all z-10 relative"
             >
-              <Play className="w-4 h-4" /> Trigger Automation
+              <Play className="w-4 h-4 z-10 relative" /> Trigger Automation
             </button>
           </div>
         ))}
         
-        <div className="border border-dashed border-border-default rounded-xl p-6 flex flex-col items-center justify-center text-center opacity-70 hover:opacity-100 transition-opacity cursor-pointer bg-panel/30">
+        <div className="border border-dashed border-border-default rounded-xl p-6 flex flex-col items-center justify-center text-center opacity-70 hover:opacity-100 transition-opacity cursor-pointer bg-panel/30 min-h-[300px]">
            <Zap className="w-8 h-8 text-text-dim mb-3" />
            <h3 className="font-semibold text-white mb-1">Create Custom Workflow</h3>
            <p className="text-xs text-text-dim">Define a new agent pipeline graph and store it in Memory.</p>

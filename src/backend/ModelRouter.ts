@@ -1,37 +1,114 @@
 import { GoogleGenAI } from "@google/genai";
 
-export type ModelProvider = 'gemini' | 'openai' | 'anthropic' | 'ollama';
+export type ModelProvider = 'gemini' | 'openai' | 'anthropic' | 'groq' | 'openrouter' | 'mistral';
 
 /**
  * ModelRouter
- * Mimics OpenClaw's ability to seamlessly route LLM requests locally (Ollama)
- * or to cloud providers based on the configured environment.
+ * Real OpenClaw Gateway router mapping local API keys into cloud executions.
  */
 export class ModelRouter {
-  static async generate(provider: ModelProvider, prompt: string): Promise<string> {
+  static async generate(provider: string, prompt: string): Promise<string> {
+    const prov = provider.toLowerCase();
     
-    // In actual OpenClaw, this breaks out into specific Provider API clients.
-    // E.g. Ollama via fetch('http://localhost:11434/api/generate')
-    
-    switch (provider) {
-      case 'openai':
-      case 'anthropic':
-      case 'ollama':
-      case 'gemini':
-        // For the scope of this OS environment, we dynamically funnel all mock endpoints
-        // into the natively authorized Gemini API wrapper to simulate successful connection payload parsing.
-        try {
-          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    try {
+      if (prov === 'openai') {
+         const apiKey = process.env.OPENAI_API_KEY;
+         if (!apiKey) throw new Error("OPENAI_API_KEY inside environment is missing.");
+         const res = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model: "gpt-4o-mini",
+              messages: [{ role: "user", content: prompt }]
+            })
+         });
+         const data = await res.json();
+         if (data.error) throw new Error(data.error.message);
+         return data.choices[0].message.content;
+      }
+      
+      else if (prov === 'anthropic') {
+         const apiKey = process.env.ANTHROPIC_API_KEY;
+         if (!apiKey) throw new Error("ANTHROPIC_API_KEY inside environment is missing.");
+         const res = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json", 
+              "x-api-key": apiKey,
+              "anthropic-version": "2023-06-01"
+            },
+            body: JSON.stringify({
+              model: "claude-3-5-sonnet-20241022",
+              max_tokens: 4096,
+              messages: [{ role: "user", content: prompt }]
+            })
+         });
+         const data = await res.json();
+         if (data.error) throw new Error(data.error.message);
+         return data.content[0].text;
+      }
+      
+      else if (prov === 'groq') {
+         const apiKey = process.env.GROQ_API_KEY;
+         if (!apiKey) throw new Error("GROQ_API_KEY inside environment is missing.");
+         const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model: "llama3-70b-8192", // Fast open source model
+              messages: [{ role: "user", content: prompt }]
+            })
+         });
+         const data = await res.json();
+         if (data.error) throw new Error(data.error.message);
+         return data.choices[0].message.content;
+      }
+      
+      else if (prov === 'openrouter') {
+         const apiKey = process.env.OPENROUTER_API_KEY;
+         if (!apiKey) throw new Error("OPENROUTER_API_KEY inside environment is missing.");
+         const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model: "anthropic/claude-3.5-sonnet", // Or whatever defaults they mapped
+              messages: [{ role: "user", content: prompt }]
+            })
+         });
+         const data = await res.json();
+         if (data.error) throw new Error(data.error.message);
+         return data.choices[0].message.content;
+      }
+
+      else if (prov === 'mistral') {
+         const apiKey = process.env.MISTRAL_API_KEY;
+         if (!apiKey) throw new Error("MISTRAL_API_KEY inside environment is missing.");
+         const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model: "mistral-large-latest",
+              messages: [{ role: "user", content: prompt }]
+            })
+         });
+         const data = await res.json();
+         if (data.error) throw new Error(data.error.message);
+         return data.choices[0].message.content;
+      }
+
+      // Default mapping internally falls back to local Google AI instance included
+      else {
+          const apiKey = process.env.GEMINI_API_KEY;
+          if (!apiKey) throw new Error("GEMINI_API_KEY is missing. Default AI requires this.");
+          const ai = new GoogleGenAI({ apiKey: apiKey });
           const response = await ai.models.generateContent({
              model: "gemini-2.5-flash", // Fast routing tier
              contents: prompt,
           });
           return response.text || "";
-        } catch (e: any) {
-          throw new Error(`ModelRouter Gateway Error [${provider}]: ${e.message}`);
-        }
-      default:
-        throw new Error(`Unsupported provider layer: ${provider}`);
+      }
+    } catch (e: any) {
+      throw new Error(`ModelRouter Gateway Error [${provider}]: ${e.message}`);
     }
   }
 }
