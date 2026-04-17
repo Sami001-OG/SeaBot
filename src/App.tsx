@@ -6,10 +6,24 @@ import { ArchitectureView } from "./views/ArchitectureView";
 import { AgentEngineView } from "./views/AgentEngineView";
 import { CapabilitiesView } from "./views/CapabilitiesView";
 import { TerminalView } from "./views/TerminalView";
+import { SetupTerminalView } from "./views/SetupTerminalView";
 
 export default function App() {
   const [currentView, setCurrentView] = useState('vision');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isConfigured, setIsConfigured] = useState(false);
+
+  useEffect(() => {
+    const configured = localStorage.getItem("seabot-configured");
+    if (configured) setIsConfigured(true);
+  }, []);
+
+  if (!isConfigured) {
+    return <SetupTerminalView onComplete={() => {
+      localStorage.setItem("seabot-configured", "true");
+      setIsConfigured(true);
+    }} />
+  }
 
   const renderView = () => {
     switch (currentView) {

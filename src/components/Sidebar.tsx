@@ -1,4 +1,4 @@
-import { Network, BrainCircuit, Database, Layout, Terminal, Settings, ChevronRight, Zap } from "lucide-react";
+import { Network, BrainCircuit, Database, Layout, Terminal, Settings, ChevronRight, Zap, Waves } from "lucide-react";
 
 export function Sidebar({ 
   currentView, 
@@ -34,10 +34,10 @@ export function Sidebar({
       {/* Sidebar Content */}
       <div className={`fixed inset-y-0 left-0 z-50 w-[240px] bg-panel border-r border-border-default h-screen flex flex-col flex-shrink-0 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-[60px] flex items-center px-6 border-b border-border-default shrink-0">
-          <div className="w-6 h-6 rounded bg-accent flex items-center justify-center mr-3 shadow-[0_0_10px_rgba(59,130,246,0.5)]">
-            <BrainCircuit className="w-4 h-4 text-white" />
+          <div className="w-8 h-8 rounded bg-gradient-to-br from-[#00c6ff] to-[#0072ff] flex items-center justify-center mr-3 shadow-[0_0_15px_rgba(0,198,255,0.5)]">
+            <Waves className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-white text-[18px] tracking-tight">Nexus OS</span>
+          <span className="font-bold text-white text-[18px] tracking-tight">SeaBot</span>
         </div>
         
         <div className="flex-1 py-5 flex flex-col gap-1 overflow-y-auto">
