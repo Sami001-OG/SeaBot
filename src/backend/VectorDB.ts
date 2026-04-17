@@ -75,8 +75,10 @@ export class VectorDB {
       const qVec = resp.embeddings[0].values;
 
       const scored = this.entries.map(e => ({
+        id: e.id,
         content: e.content,
         tags: e.tags,
+        timestamp: e.timestamp,
         score: this.cosineSimilarity(qVec, e.embedding)
       }));
 
@@ -87,6 +89,16 @@ export class VectorDB {
          console.error("Vector DB Search error:", e);
          return [];
     }
+  }
+
+  async getAll() {
+    await this.init();
+    return this.entries.map(e => ({
+      id: e.id,
+      content: e.content,
+      tags: e.tags,
+      timestamp: e.timestamp
+    }));
   }
 
   private cosineSimilarity(vecA: number[], vecB: number[]) {

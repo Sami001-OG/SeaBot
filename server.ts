@@ -2,7 +2,9 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import fs from "fs/promises";
+import fsSync from "fs";
 import { runRealAgent } from "./src/backend/RealAgent.js";
+import { VectorDB } from "./src/backend/VectorDB.js";
 
 async function startServer() {
   const app = express();
@@ -23,6 +25,68 @@ async function startServer() {
       res.json({ success: true });
     } catch (e: any) {
       console.error("Failed to write to .env", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Memory API: Get all vectors from LTM
+  app.get("/api/memory", async (req, res) => {
+    try {
+      const vdb = new VectorDB();
+      const entries = await vdb.getAll();
+      res.json(entries);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Memory API: Manually store new memory
+  app.post("/api/memory", async (req, res) => {
+    try {
+      const { content, tags } = req.body;
+      const vdb = new VectorDB();
+      await vdb.store(content, tags);
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Workspace API: Direct Filesystem Access for Web UI
+  app.get("/api/fs/list", async (req, res) => {
+    try {
+      const dirPath = req.query.path ? String(req.query.path) : process.cwd();
+      const items = await fs.readdir(dirPath, { withFileTypes: true });
+      const result = items.map(item => ({
+        name: item.name,
+        isDirectory: item.isDirectory(),
+        path: path.relative(process.cwd(), path.join(dirPath, item.name))
+      }));
+      res.json(result);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/fs/read", async (req, res) => {
+    try {
+      const targetPath = path.resolve(process.cwd(), String(req.query.path || ''));
+      if (!targetPath.startsWith(process.cwd())) throw new Error("Access Denied");
+      const content = await fs.readFile(targetPath, 'utf8');
+      res.json({ content });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/fs/write", async (req, res) => {
+    try {
+      const { targetPath, content } = req.body;
+      const fullPath = path.resolve(process.cwd(), targetPath);
+      if (!fullPath.startsWith(process.cwd())) throw new Error("Access Denied");
+      await fs.writeFile(fullPath, content, 'utf8');
+      res.json({ success: true });
+    } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
   });

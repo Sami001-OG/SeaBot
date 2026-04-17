@@ -1,16 +1,14 @@
 import { useState, useEffect } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
-import { VisionView } from "./views/VisionView";
-import { ArchitectureView } from "./views/ArchitectureView";
-import { AgentEngineView } from "./views/AgentEngineView";
-import { CapabilitiesView } from "./views/CapabilitiesView";
 import { TerminalView } from "./views/TerminalView";
 import { SetupTerminalView } from "./views/SetupTerminalView";
 import { SettingsView } from "./views/SettingsView";
+import { WorkspaceView } from "./views/WorkspaceView";
+import { MemoryView } from "./views/MemoryView";
 
 export default function App() {
-  const [currentView, setCurrentView] = useState('vision');
+  const [currentView, setCurrentView] = useState('workspace');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
 
@@ -28,21 +26,10 @@ export default function App() {
 
   const renderView = () => {
     switch (currentView) {
-      case 'vision':
-        return <VisionView />;
-      case 'architecture':
-        return <ArchitectureView />;
-      case 'agent':
-        return <AgentEngineView />;
-      case 'capabilities':
-        return <CapabilitiesView />;
-      case 'ui':
-        return (
-          <div className="p-4 md:p-6 max-w-[1200px] mx-auto flex flex-col items-center justify-center h-full text-text-dim">
-            <h2 className="text-[12px] uppercase tracking-[0.05em] font-semibold text-text-main mb-2">Step 8: Dashboard Architecture</h2>
-            <p className="text-center max-w-lg mb-8 text-[13px]">This entire application fulfills Step 8: delivering a professional, SaaS-grade React dashboard as the Web Interface module.</p>
-          </div>
-        );
+      case 'workspace':
+        return <WorkspaceView />;
+      case 'memory':
+        return <MemoryView />;
       case 'terminal':
         return <TerminalView />;
       case 'settings':

@@ -1,4 +1,4 @@
-import { Network, BrainCircuit, Database, Layout, Terminal, Settings, ChevronRight, Zap, Waves } from "lucide-react";
+import { Network, BrainCircuit, Database, Layout, Terminal, Settings, ChevronRight, Zap, Waves, FolderGit2, MessagesSquare } from "lucide-react";
 
 export function Sidebar({ 
   currentView, 
@@ -12,13 +12,10 @@ export function Sidebar({
   setIsOpen: (v: boolean) => void
 }) {
   const navItems = [
-    { id: 'vision', label: 'System Vision', icon: Network },
-    { id: 'architecture', label: 'Architecture', icon: Database },
-    { id: 'agent', label: 'Agent Engine', icon: BrainCircuit },
-    { id: 'capabilities', label: 'Capabilities', icon: Zap },
-    { id: 'ui', label: 'Dashboard UX', icon: Layout },
-    { id: 'terminal', label: 'Execution', icon: Terminal },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'workspace', label: 'File Explorer', icon: FolderGit2, section: 'Core Capabilities' },
+    { id: 'memory', label: 'Vector Vault', icon: Database, section: 'Core Capabilities' },
+    { id: 'terminal', label: 'Terminal Logs', icon: Terminal, section: 'Core Capabilities' },
+    { id: 'settings', label: 'Platform Settings', icon: Settings, section: 'Configuration' },
   ];
 
   return (
@@ -41,35 +38,39 @@ export function Sidebar({
         </div>
         
         <div className="flex-1 py-5 flex flex-col gap-1 overflow-y-auto">
-          <div className="px-5 mb-2 text-[10px] text-text-dim uppercase tracking-[0.1em]">
-            Platform Specs
-          </div>
-          {navItems.map(item => {
-            const isActive = currentView === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setCurrentView(item.id)}
-                className={`w-full flex items-center px-5 py-2.5 transition-all text-left ${
-                  isActive 
-                    ? 'bg-accent-dim text-accent border-r-2 border-accent' 
-                    : 'text-text-dim hover:bg-accent-dim hover:text-accent border-r-2 border-transparent'
-                }`}
-              >
-                <item.icon className="w-4 h-4 mr-3" />
-                <span className="flex-1">{item.label}</span>
-                {isActive && <ChevronRight className="w-4 h-4 text-accent" />}
-              </button>
-            )
-          })}
+          {['Core Capabilities', 'Configuration'].map(section => (
+            <div key={section} className="mb-4">
+              <div className="px-5 mb-2 text-[10px] text-text-dim uppercase tracking-[0.1em]">
+                {section}
+              </div>
+              {navItems.filter(item => item.section === section).map(item => {
+                const isActive = currentView === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setCurrentView(item.id)}
+                    className={`w-full flex items-center px-5 py-2.5 transition-all text-left ${
+                      isActive 
+                        ? 'bg-accent-dim text-accent border-r-2 border-accent' 
+                        : 'text-text-dim hover:bg-accent-dim hover:text-accent border-r-2 border-transparent'
+                    }`}
+                  >
+                    <item.icon className="w-4 h-4 mr-3" />
+                    <span className="flex-1">{item.label}</span>
+                    {isActive && <ChevronRight className="w-4 h-4 text-accent" />}
+                  </button>
+                )
+              })}
+            </div>
+          ))}
         </div>
         
         <div className="border-t border-border-default p-4 shrink-0">
           <div className="bg-bg-base/50 rounded-lg p-3 border border-border-default">
-            <div className="text-[10px] text-text-dim uppercase tracking-[0.1em] mb-1">System Status</div>
+            <div className="text-[10px] text-text-dim uppercase tracking-[0.1em] mb-1">Daemon Status</div>
             <div className="flex items-center text-[11px] font-mono text-text-main">
-              <span className="w-1.5 h-1.5 rounded-full bg-success mr-2"></span>
-              <span>All Systems Nominal</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-success mr-2 animate-pulse"></span>
+              <span>Port 18789 Listening</span>
             </div>
           </div>
         </div>
