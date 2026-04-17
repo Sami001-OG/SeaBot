@@ -10,6 +10,7 @@ import { ReActStep } from "./engine/types";
 
 export default function App() {
   const [currentView, setCurrentView] = useState('vision');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [terminalLogs, setTerminalLogs] = useState<ReActStep[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -79,18 +80,18 @@ export default function App() {
         return <CapabilitiesView />;
       case 'ui':
         return (
-          <div className="p-6 max-w-[1200px] mx-auto flex flex-col items-center justify-center h-full text-text-dim">
+          <div className="p-4 md:p-6 max-w-[1200px] mx-auto flex flex-col items-center justify-center h-full text-text-dim">
             <h2 className="text-[12px] uppercase tracking-[0.05em] font-semibold text-text-main mb-2">Step 8: UI/UX Design</h2>
             <p className="text-center max-w-lg mb-8 text-[13px]">This entire application is the fulfillment of Step 8: delivering a professional, SaaS-grade React dashboard as the Web Interface module.</p>
           </div>
         );
       case 'terminal':
         return (
-          <div className="p-6 max-w-[1200px] mx-auto h-full flex flex-col pb-10">
+          <div className="p-4 md:p-6 max-w-[1200px] mx-auto h-full flex flex-col pb-10">
             <h2 className="text-[12px] uppercase tracking-[0.05em] font-semibold text-text-dim mb-4">Step 10: Code Generation & Execution</h2>
             <div 
               ref={scrollRef}
-              className="flex-1 bg-terminal-bg border border-terminal-border rounded-[4px] p-4 font-mono text-[12px] leading-[1.6] text-text-main overflow-y-auto"
+              className="flex-1 bg-terminal-bg border border-terminal-border rounded-[4px] p-4 font-mono text-[10px] md:text-[12px] leading-[1.6] text-text-main overflow-y-auto"
             >
               <div className="mb-4">
                 <span className="text-success">[14:00:00]</span> <span>➜</span> ~ nexus start --hybrid
@@ -102,14 +103,14 @@ export default function App() {
                 const timeStr = new Date(log.timestamp).toLocaleTimeString('en-US', { hour12: false });
                 return (
                   <div key={log.id} className="mt-1 flex items-start group hover:bg-white/5 px-2 rounded-sm transition-colors">
-                    <span className="text-success min-w-[75px] shrink-0">[{timeStr}]</span>
-                    <span className={`mr-3 font-semibold min-w-[70px] shrink-0 ${getLogColor(log.type)}`}>
+                    <span className="text-success min-w-[65px] md:min-w-[75px] shrink-0">[{timeStr}]</span>
+                    <span className={`mr-2 md:mr-3 font-semibold min-w-[60px] md:min-w-[70px] shrink-0 ${getLogColor(log.type)}`}>
                       {getLogPrefix(log.type)}
                     </span>
                     <span className={`break-words flex-1 ${getLogColor(log.type)}`}>
                       {log.content}
                     </span>
-                    <span className="opacity-0 group-hover:opacity-100 text-border-default text-[10px] ml-4 shrink-0 transition-opacity">
+                    <span className="opacity-0 group-hover:opacity-100 text-border-default text-[10px] ml-4 shrink-0 transition-opacity hidden sm:inline-block">
                       {log.agentId}
                     </span>
                   </div>
@@ -118,7 +119,7 @@ export default function App() {
               
               <div className="mt-2 flex items-center px-2">
                 <span className="text-success">[     LIVE]</span>
-                <span className="ml-3 font-semibold min-w-[70px] invisible">[WAIT]</span>
+                <span className="ml-2 md:ml-3 font-semibold min-w-[60px] md:min-w-[70px] invisible">[WAIT]</span>
                 <span className="animate-pulse">_</span>
               </div>
             </div>
@@ -126,19 +127,24 @@ export default function App() {
         );
       default:
         return (
-          <div className="p-6 flex items-center justify-center h-full text-text-dim">
+          <div className="p-4 md:p-6 flex items-center justify-center h-full text-text-dim">
             Not Implemented Yet
           </div>
         );
     }
   };
 
+  const handleViewChange = (view: string) => {
+    setCurrentView(view);
+    setIsMobileMenuOpen(false);
+  };
+
   return (
-    <div className="flex w-screen h-screen bg-bg-base text-text-main overflow-hidden font-sans text-[13px] antialiased selection:bg-accent-dim selection:text-accent">
-      <Sidebar currentView={currentView} setCurrentView={setCurrentView} />
+    <div className="flex w-screen h-screen bg-bg-base text-text-main overflow-hidden font-sans text-[13px] antialiased selection:bg-accent-dim selection:text-accent relative">
+      <Sidebar currentView={currentView} setCurrentView={handleViewChange} isOpen={isMobileMenuOpen} setIsOpen={setIsMobileMenuOpen} />
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar />
-        <main className="flex-1 overflow-y-auto p-6 bg-bg-base">
+        <TopBar toggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-bg-base relative">
           {renderView()}
         </main>
       </div>
