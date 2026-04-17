@@ -1,80 +1,185 @@
 import { motion } from "motion/react";
-import { SectionCard, CodeBlock } from "../components/Cards";
-import { BrainCircuit, ShieldAlert, DatabaseBackup } from "lucide-react";
+import { SectionCard } from "../components/Cards";
+import { BrainCircuit, GitCommit, GitMerge, Database, RefreshCw, TerminalSquare } from "lucide-react";
 
 export function AgentEngineView() {
+  const swarmAgents = [
+    { id: 'SYS-ORCH-01', role: 'orchestrator', status: 'planning', memory: '1.2MB', tasks: 4 },
+    { id: 'WRK-RSRC-89', role: 'researcher', status: 'thinking', memory: '4.5MB', tasks: 1 },
+    { id: 'WRK-CODE-22', role: 'coder', status: 'idle', memory: '0.8MB', tasks: 0 },
+    { id: 'WRK-EXEC-05', role: 'sandbox', status: 'acting', memory: '128MB', tasks: 1 },
+  ];
+
+  const taskDag = [
+    { id: 'TSK-001', obj: 'Analyze repository structure', status: 'completed', agent: 'WRK-RSRC-89' },
+    { id: 'TSK-002', obj: 'Draft authentication service', status: 'in_progress', agent: 'SYS-ORCH-01' },
+    { id: 'TSK-003', obj: 'Validate security compliance', status: 'pending', agent: 'unassigned' },
+    { id: 'TSK-004', obj: 'Execute container tests', status: 'pending', agent: 'unassigned' },
+  ];
+
+  const reactTraces = [
+    { type: 'thought', text: 'I need to check the local API endpoints for the authentication service to understand current auth patterns.' },
+    { type: 'action', text: 'Tool: fs_read (path: "./api/auth.ts")' },
+    { type: 'observation', text: 'File contains basic express routes. Missing rate limiting and JWT validation.' },
+    { type: 'reflection', text: 'The existing implementation is highly insecure. I must dynamically modify the DAG to spawn a "Security Analysis" task before I can consider TSK-002 complete.' },
+  ];
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'text-success';
+      case 'in_progress':
+      case 'planning':
+      case 'thinking':
+      case 'acting': return 'text-accent';
+      case 'idle':
+      case 'pending': return 'text-text-dim';
+      default: return 'text-text-main';
+    }
+  };
+
+  const getLogColor = (type: string) => {
+    switch (type) {
+      case 'thought': return 'text-text-dim italic';
+      case 'action': return 'text-warning font-bold';
+      case 'observation': return 'text-[#a5b4fc]';
+      case 'reflection': return 'text-accent font-semibold';
+      default: return 'text-text-main';
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-[1200px] mx-auto grid auto-rows-min gap-5"
+      className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-2 auto-rows-min gap-5"
     >
       <div className="col-span-full mb-2">
-        <h1 className="text-[18px] font-bold text-white mb-1 tracking-tight">Agent & Engine</h1>
-        <p className="text-text-dim text-[13px]">Step 5, 6 & 7: Autonomous logic, execution sandbox, and memory systems.</p>
+        <h1 className="text-[18px] font-bold text-white mb-1 tracking-tight">Agent Engine Control</h1>
+        <p className="text-text-dim text-[13px]">Live dashboard visualizing Agent State, Planning (DAG), Multi-Agent Swarms, and ReAct Reflection.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 col-span-full">
-        <SectionCard title="5. Agent Framework Design" icon={BrainCircuit}>
-          <div className="space-y-4 text-[13px] text-text-main">
-            <p>
-              The Agent Brain relies on a continuous loop: <strong className="text-accent font-mono">Observe {'>'} Plan {'>'} Execute {'>'} Reflect</strong>.
-            </p>
-            <ul className="list-disc pl-4 space-y-2 text-text-dim">
-              <li><strong className="text-text-main">Planning:</strong> LLM decomposes prompt into a DAG (Directed Acyclic Graph) of sub-tasks.</li>
-              <li><strong className="text-text-main">Reasoning (ReAct):</strong> Agents narrate their thoughts to keep context focused before calling a tool.</li>
-              <li><strong className="text-text-main">Reflection & Try-Catch:</strong> If a tool fails (e.g., shell error), the agent reads stderr, reflects, and retries with a modified command. Max retry limits apply.</li>
-              <li><strong className="text-text-main">Multi-Agent Collab:</strong> A hierarchy where a "Manager Agent" spawns "Specialist Agents" (e.g., CodeWriter, QA_Tester).</li>
-            </ul>
+      {/* MULTI-AGENT SWARM TOPOLOGY */}
+      <div className="flex flex-col gap-5">
+        <SectionCard title="Multi-Agent Swarm Topology" icon={NetworkIcon}>
+          <div className="space-y-3">
+            {swarmAgents.map((agent) => (
+              <div key={agent.id} className="flex items-center justify-between p-3 rounded bg-white/5 border border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="relative flex h-3 w-3">
+                    {['planning', 'thinking', 'acting'].includes(agent.status) && (
+                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+                    )}
+                    <span className={`relative inline-flex rounded-full h-3 w-3 ${
+                      agent.status === 'idle' ? 'bg-text-dim' : 'bg-accent'
+                    }`}></span>
+                  </div>
+                  <div>
+                    <div className="font-mono text-[12px] text-white tracking-tight">{agent.id}</div>
+                    <div className="text-[10px] text-text-dim uppercase tracking-wider mt-0.5">{agent.role}</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`text-[11px] font-semibold uppercase tracking-wider ${getStatusColor(agent.status)}`}>
+                    {agent.status}
+                  </div>
+                  <div className="text-[10px] text-text-dim font-mono mt-0.5">Mem: {agent.memory}</div>
+                </div>
+              </div>
+            ))}
           </div>
         </SectionCard>
 
-        <SectionCard title="7. Memory System Architecture" icon={DatabaseBackup}>
-           <div className="space-y-4 text-[13px] text-text-main">
-              <p>Memory is tiered to mimic human cognition, preventing token-limit exhaustion.</p>
-              <div className="border-l-2 border-accent/50 pl-3">
-                <strong className="text-text-main text-[10px] uppercase tracking-[0.1em] block mb-1">Short-Term (Context Window)</strong>
-                <span className="text-text-dim text-[13px]">Recent conversation history and immediately relevant tool outputs. Managed via shifting window buffering.</span>
-              </div>
-              <div className="border-l-2 border-success/50 pl-3">
-                <strong className="text-text-main text-[10px] uppercase tracking-[0.1em] block mb-1">Long-Term (Vector Memory)</strong>
-                <span className="text-text-dim text-[13px]">Embeddings of past successful workflows, personal data, and codebase chunks. Accessed via RAG (Retrieval Augmented Generation).</span>
-              </div>
-              <div className="border-l-2 border-warning/50 pl-3">
-                <strong className="text-text-main text-[10px] uppercase tracking-[0.1em] block mb-1">Procedural Memory</strong>
-                <span className="text-text-dim text-[13px]">Compiled macros of workflows that the agent "learned" to do efficiently, drastically reducing API calls for repetitive tasks.</span>
-              </div>
-           </div>
-        </SectionCard>
-      </div>
-
-      <div className="col-span-full">
-        <SectionCard title="6. Secure Execution Sandbox" icon={ShieldAlert}>
-          <div className="text-[13px] text-text-main mb-4">
-            Executing LLM-generated code/shell commands is highly dangerous. We use a defense-in-depth approach.
+        {/* AGENT STATE & CONTEXT */}
+        <SectionCard title="Agent State Sandbox" icon={Database}>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="p-3 bg-terminal-bg border border-terminal-border rounded">
+              <div className="text-[10px] text-text-dim uppercase tracking-wider mb-1">Context Window</div>
+              <div className="text-[16px] text-white font-mono">14.2<span className="text-[12px] text-text-dim">K</span> / 128<span className="text-[12px] text-text-dim">K</span></div>
+            </div>
+            <div className="p-3 bg-terminal-bg border border-terminal-border rounded">
+              <div className="text-[10px] text-text-dim uppercase tracking-wider mb-1">LTM Vectors</div>
+              <div className="text-[16px] text-white font-mono">1,402</div>
+            </div>
           </div>
-          <CodeBlock 
-            language="yaml"
-            code={`# Execution Engine Security Tiers
-
-Tier 1: Read-Only (Local)
-  - Agents can only read specific whitelisted directories.
-  - Cannot execute code. Safe for parsing local docs.
-
-Tier 2: Ephemeral Docker Container (Isolated Compute)
-  - Generates code -> builds container -> runs -> extracts stdout.
-  - No internet access, destroyed on completion.
-
-Tier 3: User Confirmation (Interactive)
-  - "The Agent wishes to execute: 'rm -rf node_modules' - Allow? [y/N]"
-  - Requires web UI intercept and WebSockets signaling.
-
-Tier 4: Deep OS (Desktop App Only)
-  - Full system access (Browser Automation, File System). 
-  - Restricted entirely by OS-level permissions (e.g., Mac Accessibility controls).`}
-          />
+          <div className="p-3 bg-white/5 border border-white/5 rounded">
+            <div className="text-[10px] text-text-dim uppercase tracking-wider mb-2">Loaded Tools</div>
+            <div className="flex flex-wrap gap-2">
+              {['fs_read', 'fs_write', 'system_exec', 'browser_relay', 'semantic_search'].map(tool => (
+                <span key={tool} className="text-[10px] font-mono text-[#a5b4fc] bg-[#a5b4fc]/10 px-2 py-1 rounded">
+                  {tool}
+                </span>
+              ))}
+            </div>
+          </div>
         </SectionCard>
       </div>
+
+      <div className="flex flex-col gap-5">
+        {/* TASK PLANNING (DAG) */}
+        <SectionCard title="Dynamic Task DAG (Planning)" icon={GitMerge}>
+          <div className="relative before:absolute before:inset-0 before:ml-4 before:h-full before:w-[1px] before:bg-white/10 ml-1">
+            {taskDag.map((task, index) => (
+              <div key={task.id} className="relative flex items-center mb-4 last:mb-0">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full border-[3px] border-panel z-10 shrink-0 ${
+                  task.status === 'completed' ? 'bg-success' : task.status === 'in_progress' ? 'bg-accent' : 'bg-text-dim'
+                }`}>
+                  {task.status === 'in_progress' && <RefreshCw size={12} className="text-white animate-spin" />}
+                  {task.status === 'completed' && <GitCommit size={12} className="text-white" />}
+                  {task.status === 'pending' && <span className="w-1.5 h-1.5 bg-white rounded-full"></span>}
+                </div>
+                <div className="ml-4 w-full p-3 rounded border border-white/5 bg-white/5">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-mono text-[10px] text-text-dim">{task.id}</span>
+                    <span className={`text-[9px] uppercase tracking-wider font-bold ${getStatusColor(task.status)}`}>{task.status}</span>
+                  </div>
+                  <div className="text-[12px] text-white leading-tight mb-2">{task.obj}</div>
+                  <div className="text-[10px] font-mono text-accent bg-accent/10 px-1.5 py-0.5 rounded inline-block">
+                    {task.agent}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+
+        {/* AGENT REFLECTION (REACT TRACES) */}
+        <SectionCard title="Agent Reflection & ReAct Engine" icon={TerminalSquare}>
+          <div className="bg-terminal-bg border border-terminal-border rounded p-4 font-mono text-[11px] leading-[1.6] overflow-hidden">
+            <div className="text-text-dim mb-3 border-b border-terminal-border pb-2">
+              {'// TRACE ID: rct-9f2a-4bcc // AGENT: SYS-ORCH-01'}
+            </div>
+            <div className="space-y-3">
+              {reactTraces.map((trace, idx) => (
+                <div key={idx} className="flex items-start">
+                  <span className={`min-w-[85px] shrink-0 uppercase tracking-wider text-[10px] mt-0.5 ${
+                    trace.type === 'action' ? 'text-warning' : 
+                    trace.type === 'reflection' ? 'text-accent' : 
+                    'text-success'
+                  }`}>
+                    [{trace.type}]
+                  </span>
+                  <span className={`flex-1 break-words ${getLogColor(trace.type)}`}>
+                    {trace.text}
+                  </span>
+                </div>
+              ))}
+              <div className="flex items-start pt-2 opacity-50 animate-pulse">
+                <span className="min-w-[85px] shrink-0 uppercase tracking-wider text-[10px] mt-0.5 text-success">
+                  [THINK]
+                </span>
+                <span className="flex-1 break-words text-text-dim italic">
+                  Updating DAG graph and dispatching...
+                </span>
+              </div>
+            </div>
+          </div>
+        </SectionCard>
+      </div>
+
     </motion.div>
   );
+}
+
+function NetworkIcon(props: any) {
+  return <BrainCircuit {...props} />;
 }
