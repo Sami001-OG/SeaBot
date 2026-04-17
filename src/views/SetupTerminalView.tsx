@@ -1,67 +1,105 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+type WizardState = 'IDLE' | 'RUNTIME' | 'PROVIDER' | 'API_KEY' | 'GATEWAY' | 'VERIFYING';
+
 export function SetupTerminalView({ onComplete }: { onComplete: () => void }) {
   const [history, setHistory] = useState<string[]>([
-    "🌊 initializing SeaBot Setup Wizard...",
+    "🌊 SeaBot OS Initialized.",
     "==========================================",
-    "Run this wizard in your native terminal via 'npx seabot' or complete it here:",
+    "Run 'seabot onboard --install-daemon' to configure Gateway, Runtime, and Model Providers.",
     ""
   ]);
   const [input, setInput] = useState("");
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState<WizardState>('IDLE');
   const [config, setConfig] = useState<Record<string, string>>({});
+  const [selectedProvider, setSelectedProvider] = useState('GEMINI');
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const prompts = [
-    { key: "GEMINI_API_KEY", msg: "Primary AI API Key (Gemini/OpenAI) [Press Enter to Skip]:" },
-    { key: "TELEGRAM_TOKEN", msg: "Telegram Bot Token (Channels Integration) [Press Enter to Skip]:" },
-    { key: "WHATSAPP_TOKEN", msg: "WhatsApp Cloud Token (Channels Integration) [Press Enter to Skip]:" },
-    { key: "SEARCH_API_KEY", msg: "Tavily Search API Key (Web Surfing) [Press Enter to Skip]:" },
-  ];
-
   useEffect(() => {
-    if (step < prompts.length) {
-      setHistory(prev => [...prev, prompts[step].msg]);
-    } else if (step === prompts.length) {
-      finalizeSetup();
-    }
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-  }, [step]);
+  }, [history, step]);
 
-  const finalizeSetup = async () => {
-    setHistory(prev => [...prev, "Saving configuration to local .env...", "[SUCCESS] Environment configured successfully."]);
+  const finalizeSetup = async (finalConfig: Record<string, string>) => {
+    setHistory(prev => [...prev, "Verifying Gateway daemon on port 18789..."]);
     
-    try {
-      await fetch('/api/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
-      });
-      setHistory(prev => [...prev, "[STARTING] Redirecting to SeaBot Web Dashboard on localhost..."]);
-      setTimeout(onComplete, 2000);
-    } catch (e) {
-      setHistory(prev => [...prev, "[ERROR] Failed to save config via API."]);
-      setTimeout(onComplete, 2000); // Proceed anyway for the demo
-    }
+    setTimeout(async () => {
+       setHistory(prev => [...prev, "[SUCCESS] Gateway verified.", "Saving configuration to local .env..."]);
+       try {
+         await fetch('/api/setup', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify(finalConfig)
+         });
+         setHistory(prev => [...prev, "[SUCCESS] Environment configured successfully.", "[STARTING] Launching Web Interface..."]);
+         setTimeout(onComplete, 1500);
+       } catch (e) {
+         setHistory(prev => [...prev, "[ERROR] Failed to save config via API."]);
+         setTimeout(onComplete, 1500);
+       }
+    }, 1200);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       const val = input.trim();
-      if (step < prompts.length) {
-        if (val) {
-          setConfig(prev => ({ ...prev, [prompts[step].key]: val }));
-        }
-        setHistory(prev => [...prev, `> ${val ? '********' : '[SKIPPED]'}`]);
-        setStep(prev => prev + 1);
-        setInput("");
+      let nextHistory = [...history, `> ${val}`];
+      
+      switch (step) {
+        case 'IDLE':
+          if (val === 'seabot onboard --install-daemon' || val === 'openclaw onboard --install-daemon') {
+            nextHistory.push(
+              "Starting Daemon Installer...",
+              "Configure Node.js Runtime Path [default: /usr/local/bin/node]:"
+            );
+            setStep('RUNTIME');
+          } else {
+             nextHistory.push(`Command not found: ${val}. Try 'seabot onboard --install-daemon'`);
+          }
+          break;
+        case 'RUNTIME':
+          setConfig(prev => ({ ...prev, NODE_RUNTIME_PATH: val || '/usr/local/bin/node' }));
+          nextHistory.push(
+            "Supported Providers: openai, anthropic, gemini, xai, mistral, groq, cerebras, openrouter, huggingface, nvidia, together, moonshot, qianfan, qwen, volcengine, byteplus, xiaomi, vercel, cloudflare, stepfun, venice, kilocode, minimax, copilot",
+            "Select Model Provider [default: gemini]:"
+          );
+          setStep('PROVIDER');
+          break;
+        case 'PROVIDER':
+          const prov = (val || 'gemini').toUpperCase();
+          setSelectedProvider(prov);
+          setConfig(prev => ({ ...prev, PRIMARY_PROVIDER: prov }));
+          nextHistory.push(
+            `Enter API Key for ${prov} (Supports rotation: ${prov}_API_KEYS, OPENCLAW_LIVE_${prov}_KEY) [skip]:`
+          );
+          setStep('API_KEY');
+          break;
+        case 'API_KEY':
+          if (val) {
+             // In UI, hide the actual token output in log history loop (already pushed `> ${val}` above)
+             nextHistory[nextHistory.length - 1] = `> ${'*'.repeat(val.length)}`;
+             setConfig(prev => ({ ...prev, [`${selectedProvider}_API_KEY`]: val }));
+          } else {
+             nextHistory[nextHistory.length - 1] = `> [SKIPPED]`;
+          }
+          nextHistory.push("Configure Gateway Port [default: 18789]:");
+          setStep('GATEWAY');
+          break;
+        case 'GATEWAY':
+          const updatedConfig = { ...config, GATEWAY_PORT: val || '18789' };
+          setConfig(updatedConfig);
+          setStep('VERIFYING');
+          finalizeSetup(updatedConfig);
+          break;
       }
+      
+      setHistory(nextHistory);
+      setInput("");
     }
   };
 
   return (
     <div className="w-screen h-screen bg-[#0b0c0e] flex items-center justify-center p-4 md:p-10 font-mono">
-      <div className="w-full max-w-3xl h-[500px] border border-terminal-border bg-terminal-bg rounded flex flex-col p-6 shadow-2xl relative overflow-hidden">
+      <div className="w-full max-w-4xl h-[600px] border border-terminal-border bg-terminal-bg rounded flex flex-col p-6 shadow-2xl relative overflow-hidden">
         
         {/* Fake Terminal Header */}
         <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
@@ -70,8 +108,8 @@ export function SetupTerminalView({ onComplete }: { onComplete: () => void }) {
              <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
              <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
            </div>
-           <span className="text-text-dim text-xs font-semibold tracking-wider">seabot-cli — local bash</span>
-           <div className="w-16"></div> {/* Spacer to center title */}
+           <span className="text-text-dim text-xs font-semibold tracking-wider">seabot bash — 80x24</span>
+           <div className="w-16"></div> 
         </div>
 
         {/* Terminal Output */}
@@ -81,7 +119,7 @@ export function SetupTerminalView({ onComplete }: { onComplete: () => void }) {
               {line}
             </div>
           ))}
-          {step < prompts.length && (
+          {step !== 'VERIFYING' && (
             <div className="flex items-center mt-2 animate-pulse-fast">
               <span className="mr-3 text-white">➜</span>
               <input

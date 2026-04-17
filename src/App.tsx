@@ -7,6 +7,7 @@ import { AgentEngineView } from "./views/AgentEngineView";
 import { CapabilitiesView } from "./views/CapabilitiesView";
 import { TerminalView } from "./views/TerminalView";
 import { SetupTerminalView } from "./views/SetupTerminalView";
+import { SettingsView } from "./views/SettingsView";
 
 export default function App() {
   const [currentView, setCurrentView] = useState('vision');
@@ -44,6 +45,8 @@ export default function App() {
         );
       case 'terminal':
         return <TerminalView />;
+      case 'settings':
+        return <SettingsView />;
       default:
         return (
           <div className="p-4 md:p-6 flex items-center justify-center h-full text-text-dim">

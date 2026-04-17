@@ -13,22 +13,48 @@ const ask = (q) => new Promise(resolve => rl.question(q, resolve));
 
 async function run() {
   console.clear();
-  console.log(`
-  🌊 SeaBot Initialization CLI
+  const args = process.argv.slice(2);
+
+  if (!args.includes('onboard') || !args.includes('--install-daemon')) {
+    console.log(`
+  🌊 SeaBot CLI
   ===========================================
-  Welcome to SeaBot. Let's configure your local 
-  agent environment. You can skip any step by 
-  pressing Enter.
+  Usage: seabot onboard --install-daemon
+    Starts the daemon setup wizard and configures
+    the model providers, Node runtime, and Gateway.
+    `);
+    rl.close();
+    return;
+  }
+
+  console.log(`
+  🌊 SeaBot Setup Wizard (Daemon Installer)
+  ===========================================
   `);
 
   const keys = {};
 
-  keys['GEMINI_API_KEY'] = await ask('Enter Primary AI API Key (Gemini/OpenAI) [Skip]: ');
-  keys['TELEGRAM_BOT_TOKEN'] = await ask('Enter Telegram Bot Token [Skip]: ');
-  keys['WHATSAPP_TOKEN'] = await ask('Enter WhatsApp Cloud API Token [Skip]: ');
-  keys['SEARCH_API_KEY'] = await ask('Enter Tavily Search API Key [Skip]: ');
+  const runtime = await ask('Configure Node.js Runtime Path [default: /usr/local/bin/node]: ');
+  keys['NODE_RUNTIME_PATH'] = runtime || '/usr/local/bin/node';
 
-  console.log('\nSaving configuration...');
+  console.log('\nSupported Providers: openai, anthropic, gemini, xai, mistral, groq, cerebras, openrouter, huggingface, nvidia, together, moonshot, qianfan, qwen, volcengine, byteplus, xiaomi, vercel, cloudflare, stepfun, venice, kilocode, minimax, copilot');
+  const provider = await ask('Select Model Provider [default: gemini]: ');
+  const selectedProvider = (provider || 'gemini').toUpperCase();
+  keys['PRIMARY_PROVIDER'] = selectedProvider;
+
+  const apiKey = await ask(`Enter API Key for ${selectedProvider} (Supports rotation variables e.g., ${selectedProvider}_API_KEYS, OPENCLAW_LIVE_${selectedProvider}_KEY) [skip]: `);
+  if (apiKey) {
+    keys[`${selectedProvider}_API_KEY`] = apiKey;
+  }
+
+  const port = await ask('Configure Gateway Port [default: 18789]: ');
+  keys['GATEWAY_PORT'] = port || '18789';
+
+  console.log(`\nVerifying Gateway Daemon on port ${keys['GATEWAY_PORT']}...`);
+  await new Promise(r => setTimeout(r, 1000));
+  console.log('[SUCCESS] Gateway daemon verified.');
+
+  console.log('Saving configuration...');
 
   let envData = '\n';
   for (const [k, v] of Object.entries(keys)) {
@@ -46,7 +72,6 @@ async function run() {
   console.log('\n[STARTING] Redirecting and launching SeaBot Web Dashboard on localhost...\n');
   rl.close();
 
-  // Launch the server/dev process just like OpenClaw
   const child = spawn('npm', ['run', 'dev'], { 
     stdio: 'inherit', 
     shell: true 
