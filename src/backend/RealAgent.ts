@@ -85,6 +85,23 @@ export async function runRealAgent(
         }
       }
     },
+    search_codebase: {
+      name: "search_codebase",
+      description: "Searches the codebase for a specific string or regex pattern (uses grep). Essential for finding function usages, variables, or error causes.",
+      usage: "{\"pattern\": \"function init\", \"directory\": \"./src\"}",
+      execute: async (args: { pattern: string; directory: string }) => {
+        return new Promise((resolve) => {
+          const target = args.directory || '.';
+          // -r (recursive), -n (line number), -I (ignore binaries)
+          const cmd = `grep -rnI "${args.pattern}" ${target} | head -n 50`;
+          exec(cmd, { cwd: process.cwd() }, (error, stdout, stderr) => {
+             if (error && error.code === 1) resolve("No matches found.");
+             else if (error) resolve(`Error: ${error.message}`);
+             else resolve(stdout || "No matches.");
+          });
+        });
+      }
+    },
     web_fetch: {
       name: "web_fetch",
       description: "Fetches and extracts text content from a web URL. Strips HTML.",
