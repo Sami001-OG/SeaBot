@@ -1,4 +1,4 @@
-import { Network, BrainCircuit, Database, Layout, Terminal, Settings, ChevronRight, Zap, Waves, FolderGit2, MessagesSquare } from "lucide-react";
+import { Network, BrainCircuit, Database, Layout, Terminal, Settings, ChevronRight, Zap, Waves, FolderGit2, Bot } from "lucide-react";
 
 export function Sidebar({ 
   currentView, 
@@ -12,9 +12,11 @@ export function Sidebar({
   setIsOpen: (v: boolean) => void
 }) {
   const navItems = [
-    { id: 'workspace', label: 'File Explorer', icon: FolderGit2, section: 'Core Capabilities' },
-    { id: 'memory', label: 'Vector Vault', icon: Database, section: 'Core Capabilities' },
-    { id: 'terminal', label: 'Terminal Logs', icon: Terminal, section: 'Core Capabilities' },
+    { id: 'command-center', label: 'Command Center', icon: Bot, section: 'Agent Operations' },
+    { id: 'workflows', label: 'Automations', icon: Zap, section: 'Agent Operations' },
+    { id: 'workspace', label: 'File Explorer', icon: FolderGit2, section: 'Core Integrations' },
+    { id: 'memory', label: 'Vector Vault', icon: Database, section: 'Core Integrations' },
+    { id: 'terminal', label: 'Terminal Logs', icon: Terminal, section: 'Core Integrations' },
     { id: 'settings', label: 'Platform Settings', icon: Settings, section: 'Configuration' },
   ];
 
@@ -38,7 +40,7 @@ export function Sidebar({
         </div>
         
         <div className="flex-1 py-5 flex flex-col gap-1 overflow-y-auto">
-          {['Core Capabilities', 'Configuration'].map(section => (
+          {['Agent Operations', 'Core Integrations', 'Configuration'].map(section => (
             <div key={section} className="mb-4">
               <div className="px-5 mb-2 text-[10px] text-text-dim uppercase tracking-[0.1em]">
                 {section}

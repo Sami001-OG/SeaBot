@@ -43,6 +43,20 @@ export async function runRealAgent(
         });
       }
     },
+    fs_list: {
+      name: "fs_list",
+      description: "Lists all files and directories in a given path. Crucial for understanding project architecture.",
+      usage: "{\"path\": \"./src\"}",
+      execute: async (args: { path: string }) => {
+        try {
+          const fullPath = path.resolve(process.cwd(), args.path || '.');
+          const items = await fs.readdir(fullPath, { withFileTypes: true });
+          return items.map(i => `${i.isDirectory() ? '[DIR]' : '[FILE]'} ${i.name}`).join('\n');
+        } catch (e: any) {
+          return `Error reading directory: ${e.message}`;
+        }
+      }
+    },
     fs_read: {
       name: "fs_read",
       description: "Read the contents of a file at a specified path.",
@@ -58,8 +72,8 @@ export async function runRealAgent(
     },
     fs_write: {
       name: "fs_write",
-      description: "Write content to a file. Overwrites existing content.",
-      usage: "{\"path\": \"test.txt\", \"content\": \"hello world\"}",
+      description: "Write content to a file. Overwrites existing content. Automatically creates missing directories.",
+      usage: "{\"path\": \"src/components/Button.tsx\", \"content\": \"...code...\"}",
       execute: async (args: { path: string; content: string }) => {
         try {
           const fullPath = path.resolve(process.cwd(), args.path);
@@ -131,16 +145,22 @@ export async function runRealAgent(
     `- ${t.name}: ${t.description}\n  Format: ${t.usage}`
   ).join('\n\n');
 
-  const systemPrompt = `You are a Nexus OS Core Agent. You act autonomously in a ReAct loop.
+  const systemPrompt = `You are the SeaBot / OpenClaw Autonomous Engine.
+You operate as a Senior Developer, Systems Analyst, and IT Operator. 
+The user is your CEO. They will give you high-level goals (e.g., "Build a crypto signal dashboard"). Your job is to autonomously plan the architecture, execute terminal commands, manage the codebase, and finalize the application.
+
 Task Objective: ${objective}
 
 Available Tools (Your OS Capabilities):
 ${toolDescriptions}
 
 Rules:
-1. You must process the task by alternating between 'Thought' and 'Action'.
-2. If a task requires smaller isolated work, use 'delegate_task' to spawn swarm workers.
-3. If you learn something permanent, use 'memory_store'.
+1. You act autonomously in a ReAct loop (Thought -> Action -> Observation).
+2. To understand a project, use 'fs_list' followed by 'fs_read'. 
+3. You can build entire applications by chaining 'fs_write' and 'system_exec' (to install deps).
+4. If a task is massively complex, use 'delegate_task' to spawn parallel sub-agents (e.g., [RESEARCHER], [CODER]).
+5. Use 'memory_store' and 'memory_search' to leverage long-term project context.
+6. When writing code, write production-ready implementations, not placeholders.
 
 Use exactly this format:
 Thought: <your step-by-step reasoning>
@@ -156,7 +176,7 @@ Final Answer: <your final synthesized conclusion>
 
   let history = systemPrompt + "\n\n---\nBEGIN\n";
   let steps = 0;
-  const MAX_STEPS = 12; // Deeper buffer for OS operations
+  const MAX_STEPS = 25; // Massive buffer for full app generation pipelines
 
   while (steps < MAX_STEPS) {
     steps++;

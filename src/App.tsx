@@ -6,9 +6,11 @@ import { SetupTerminalView } from "./views/SetupTerminalView";
 import { SettingsView } from "./views/SettingsView";
 import { WorkspaceView } from "./views/WorkspaceView";
 import { MemoryView } from "./views/MemoryView";
+import { CommandCenterView } from "./views/CommandCenterView";
+import { WorkflowView } from "./views/WorkflowView";
 
 export default function App() {
-  const [currentView, setCurrentView] = useState('workspace');
+  const [currentView, setCurrentView] = useState('command-center');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
 
@@ -26,6 +28,10 @@ export default function App() {
 
   const renderView = () => {
     switch (currentView) {
+      case 'command-center':
+        return <CommandCenterView />;
+      case 'workflows':
+        return <WorkflowView />;
       case 'workspace':
         return <WorkspaceView />;
       case 'memory':
