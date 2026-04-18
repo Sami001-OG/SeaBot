@@ -74,21 +74,39 @@ export function StudioView() {
       .then(res => res.json())
       .then(data => {
         if (data && data.data) {
-          const orModels = data.data.map((m: any) => ({
-             id: `openrouter:${m.id}`,
-             name: m.name || m.id,
-             badge: m.context_length >= 100000 ? `${Math.floor(m.context_length/1000)}k` : undefined
-          }));
+          const freeModels: any[] = [];
+          const paidModels: any[] = [];
+          
+          data.data.forEach((m: any) => {
+             const isFree = (m.pricing?.prompt === "0" && m.pricing?.completion === "0") || m.id.endsWith(":free") || m.id.includes("-free");
+             const mapped = {
+                id: `openrouter:${m.id}`,
+                name: m.name || m.id,
+                badge: isFree ? "Free" : (m.context_length >= 100000 ? `${Math.floor(m.context_length/1000)}k` : undefined)
+             };
+             
+             if (isFree) freeModels.push(mapped);
+             else paidModels.push(mapped);
+          });
+          
           setModelDirectory(prev => {
              const copy = [...prev];
+             const existingIds = new Set();
+             copy.forEach(g => g.models.forEach(x => existingIds.add(x.id)));
+             
+             const uniqueFree = freeModels.filter((x: any) => !existingIds.has(x.id));
+             const uniquePaid = paidModels.filter((x: any) => !existingIds.has(x.id));
+             
              const orIdx = copy.findIndex(g => g.provider === "OpenRouter");
              if (orIdx >= 0) {
-                const existingIds = new Set(copy[orIdx].models.map(x => x.id));
-                const uniqueNew = orModels.filter((x: any) => !existingIds.has(x.id));
-                copy[orIdx] = { 
-                   ...copy[orIdx], 
-                   models: [...copy[orIdx].models, ...uniqueNew] 
-                };
+                // rename existing OpenRouter to OpenRouter (Premium)
+                copy[orIdx].provider = "OpenRouter (Premium)";
+                copy[orIdx].models = [...copy[orIdx].models, ...uniquePaid];
+                
+                // Insert Free models group right above it
+                if (uniqueFree.length > 0) {
+                   copy.splice(orIdx, 0, { provider: "OpenRouter (Free)", models: uniqueFree });
+                }
              }
              return copy;
           });
@@ -397,7 +415,7 @@ export function StudioView() {
                                 className={`w-full text-left px-4 py-1.5 text-[12px] flex items-center justify-between hover:bg-blue-500/10 transition-colors ${provider === mod.id ? 'text-blue-400 bg-blue-500/5' : 'text-[#ccc]'}`}
                               >
                                  <span className="truncate pr-2">{mod.name}</span>
-                                 {mod.badge && <span className={`text-[9px] px-1.5 py-0.5 rounded shrink-0 ${mod.badge === 'Fast' ? 'bg-green-500/20 text-green-400' : mod.badge === 'Smart' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>{mod.badge}</span>}
+                                 {mod.badge && <span className={`text-[9px] px-1.5 py-0.5 rounded shrink-0 ${mod.badge === 'Fast' ? 'bg-green-500/20 text-green-400' : mod.badge === 'Smart' ? 'bg-purple-500/20 text-purple-400' : mod.badge === 'Free' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-medium tracking-wide' : 'bg-blue-500/20 text-blue-400'}`}>{mod.badge}</span>}
                               </button>
                            ))}
                         </div>
