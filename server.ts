@@ -60,6 +60,89 @@ async function startServer() {
     }
   });
 
+  // Slack Events API Integration Endpoint
+  app.post("/api/webhook/slack", async (req, res) => {
+    const { type, challenge, event } = req.body;
+    
+    // Slack requires returning the challenge on endpoint setup
+    if (type === "url_verification") {
+      res.send(challenge);
+      return;
+    }
+
+    // Acknowledge event immediately to prevent Slack 3-second timeout retry loops
+    res.status(200).send("");
+
+    if (event && event.type === "message" && !event.bot_id) {
+       const incomingMsg = event.text;
+       const channelId = event.channel;
+       const slackToken = TelegramPoller.getEnv('SLACK_BOT_TOKEN');
+       if (!slackToken) return;
+
+       // Send thinking indicator (optional, but good for UX)
+       fetch('https://slack.com/api/chat.postMessage', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${slackToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel: channelId, text: "_SeaBot is pondering your request..._" })
+       }).catch(() => {});
+
+       try {
+          console.log(`[Slack] Task Initiated: ${incomingMsg}`);
+          const finalAnswer = await runRealAgent(incomingMsg, () => {}, 0, "gemini:gemini-3.1-pro");
+          
+          // Post actual response
+          await fetch('https://slack.com/api/chat.postMessage', {
+             method: 'POST',
+             headers: { 'Authorization': `Bearer ${slackToken}`, 'Content-Type': 'application/json' },
+             body: JSON.stringify({ channel: channelId, text: finalAnswer })
+          });
+       } catch (e: any) {
+          console.error("[Slack] Agent execution failed:", e.message);
+       }
+    }
+  });
+
+  // GitHub Webhook Integration (Responds to Issues or Comments natively)
+  app.post("/api/webhook/github", async (req, res) => {
+    const eventType = req.headers['x-github-event'];
+    res.status(200).send("OK"); // Acknowledge early
+
+    if (eventType === 'issues' || eventType === 'issue_comment') {
+      const action = req.body.action;
+      if (action === 'opened' || action === 'created') {
+         const repoFullName = req.body.repository?.full_name;
+         const issueNumber = req.body.issue?.number;
+         const commentBody = req.body.comment ? req.body.comment.body : req.body.issue?.body;
+         const sender = req.body.sender?.login;
+         
+         // Ignore our own bot to prevent continuous loop
+         if (req.body.sender?.type === "Bot") return;
+
+         const ghToken = TelegramPoller.getEnv('GITHUB_ACCESS_TOKEN');
+         if (!ghToken) return;
+
+         try {
+            console.log(`[GitHub] Task Initiated from ${sender}: ${commentBody}`);
+            // Provide codebase context prompt to agent
+            const task = `GitHub Issue/Comment from ${sender}: "${commentBody}". Analyze the repository and provide a technical response or fix.`;
+            const finalAnswer = await runRealAgent(task, () => {}, 0, "gemini:gemini-3.1-pro");
+            
+            await fetch(`https://api.github.com/repos/${repoFullName}/issues/${issueNumber}/comments`, {
+               method: 'POST',
+               headers: {
+                 'Authorization': `Bearer ${ghToken}`,
+                 'Accept': 'application/vnd.github.v3+json',
+                 'User-Agent': 'SeaBot-OS'
+               },
+               body: JSON.stringify({ body: `**SeaBot Auto-Response:**\n\n${finalAnswer}` })
+            });
+         } catch (e: any) {
+            console.error("[GitHub] Agent execution failed:", e.message);
+         }
+      }
+    }
+  });
+
   // Setup/Initialization Endpoint for the Terminal UI config
   app.post("/api/setup", async (req, res) => {
     const config = req.body;

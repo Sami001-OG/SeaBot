@@ -188,6 +188,44 @@ export function SettingsView() {
               <p className="text-[10px] text-text-dim italic mt-2">
                  WhatsApp Hook target URL: <code className="text-white">/api/webhook/twilio</code> 
               </p>
+
+              <div className="pt-2 border-t border-white/5 mt-3">
+                <label className="block text-[10px] font-bold text-text-dim uppercase tracking-wider mb-1 mt-1">Slack Bot Token</label>
+                <input
+                  type="password"
+                  value={config['SLACK_BOT_TOKEN'] || ''}
+                  onChange={(e) => handleChange('SLACK_BOT_TOKEN', e.target.value)}
+                  placeholder="xoxb-xxxxxxxxxxxx-xxxxxxxxxxxx"
+                  className="w-full bg-bg-base border border-border-default rounded-md px-3 py-2 text-xs text-white focus:border-accent focus:ring-1 focus:ring-accent outline-none font-mono placeholder:text-text-dim/30"
+                />
+                <p className="text-[10px] text-text-dim italic mt-2">
+                   Slack Events API URL: <code className="text-white">/api/webhook/slack</code> 
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-white/5 mt-3">
+                <label className="block text-[10px] font-bold text-text-dim uppercase tracking-wider mb-1 mt-1">GitHub Access Token</label>
+                <input
+                  type="password"
+                  value={config['GITHUB_ACCESS_TOKEN'] || ''}
+                  onChange={(e) => handleChange('GITHUB_ACCESS_TOKEN', e.target.value)}
+                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxx"
+                  className="w-full bg-bg-base border border-border-default rounded-md px-3 py-2 text-xs text-white focus:border-accent focus:ring-1 focus:ring-accent outline-none font-mono placeholder:text-text-dim/30 mb-3"
+                />
+                
+                <label className="block text-[10px] font-bold text-text-dim uppercase tracking-wider mb-1">GitHub Webhook Secret</label>
+                <input
+                  type="password"
+                  value={config['GITHUB_WEBHOOK_SECRET'] || ''}
+                  onChange={(e) => handleChange('GITHUB_WEBHOOK_SECRET', e.target.value)}
+                  placeholder="my-secret-key"
+                  className="w-full bg-bg-base border border-border-default rounded-md px-3 py-2 text-xs text-white focus:border-accent focus:ring-1 focus:ring-accent outline-none font-mono placeholder:text-text-dim/30"
+                />
+                <p className="text-[10px] text-text-dim italic mt-2">
+                   GitHub App / Repo Hook URL: <code className="text-white">/api/webhook/github</code> 
+                </p>
+              </div>
+
             </div>
           </div>
         </div>
