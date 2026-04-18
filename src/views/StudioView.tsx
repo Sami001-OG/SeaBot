@@ -128,6 +128,82 @@ const INITIAL_MODEL_DIRECTORY = [
   { provider: "OpenRouter", models: []}
 ];
 
+// --- Interactive Render Components ---
+function InteractivePreview({ inline, className, children }: any) {
+  const [viewMode, setViewMode] = useState<'preview' | 'code'>('preview');
+  const match = /language-(\w+)/.exec(className || '');
+  const isHtml = match && match[1] === 'html';
+  const codeContent = String(children).replace(/\n$/, '');
+
+  if (!inline && isHtml) {
+    // Inject Tailwind CDN seamlessly so the agent has styles out of the box
+    const srcDoc = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>body { margin: 0; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: transparent; }</style>
+        </head>
+        <body>
+          ${codeContent}
+        </body>
+      </html>
+    `;
+
+    return (
+      <div className="w-full my-4 border border-[#333] rounded-xl overflow-hidden bg-[#0A0A0A] flex flex-col">
+        {/* Header Tabs */}
+        <div className="flex items-center justify-between border-b border-[#222] bg-[#111] px-2 h-10 shrink-0">
+          <div className="flex gap-1 h-full">
+            <button 
+              onClick={() => setViewMode('preview')}
+              className={`px-4 text-[11px] font-bold tracking-wide uppercase transition-colors h-full flex items-center ${viewMode === 'preview' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-[#777] border-b-2 border-transparent hover:text-[#ccc]'}`}
+            >
+              Preview
+            </button>
+            <button 
+              onClick={() => setViewMode('code')}
+              className={`px-4 text-[11px] font-bold tracking-wide uppercase transition-colors h-full flex items-center ${viewMode === 'code' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-[#777] border-b-2 border-transparent hover:text-[#ccc]'}`}
+            >
+              Code
+            </button>
+          </div>
+          <div className="flex items-center gap-1.5 px-3">
+             <div className="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/50"></div>
+             <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
+             <div className="w-2.5 h-2.5 rounded-full bg-green-500/20 border border-green-500/50"></div>
+          </div>
+        </div>
+
+        {/* Content Body */}
+        {viewMode === 'preview' ? (
+          <div className="w-full h-[400px] bg-white relative">
+            <iframe 
+               srcDoc={srcDoc} 
+               className="w-full h-full border-none outline-none" 
+               title="Interactive UI Preview"
+               sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
+            />
+          </div>
+        ) : (
+          <pre className="!m-0 !p-4 !bg-transparent text-[11.5px] leading-relaxed overflow-x-auto custom-scrollbar">
+            <code className={className}>{children}</code>
+          </pre>
+        )}
+      </div>
+    );
+  }
+
+  // Fallback to normal code block behavior for non-HTML / inline
+  return !inline ? (
+    <pre className="border border-[#222] !bg-[#0A0A0A] rounded-lg !my-4 !p-3 overflow-x-auto text-[11.5px] leading-relaxed custom-scrollbar">
+      <code className={className}>{children}</code>
+    </pre>
+  ) : (
+    <code className="px-1.5 py-0.5 rounded-md bg-[#222] border border-[#333] text-[#cfcfcf] text-[11px]">{children}</code>
+  );
+}
+
 export function StudioView() {
   const [mobilePane, setMobilePane] = useState<'explorer' | 'editor' | 'chat'>('chat');
 
@@ -550,8 +626,14 @@ export function StudioView() {
                } else {
                  return (
                    <div key={idx} className="flex flex-col items-start w-full">
-                     <div className="w-full bg-[#111] border border-[#222] text-[#ededed] px-3 py-3 md:px-4 md:py-4 rounded-xl shadow-sm text-[12px] md:text-[13px] prose prose-invert prose-p:leading-relaxed prose-pre:bg-[#0A0A0A] prose-pre:border prose-pre:border-[#222] prose-pre:text-[11px] md:prose-pre:text-[12px] overflow-hidden break-words">
-                       <ReactMarkdown>{m.content}</ReactMarkdown>
+                     <div className="w-full bg-[#111] border border-[#222] text-[#ededed] px-3 py-3 md:px-4 md:py-4 rounded-xl shadow-sm text-[12px] md:text-[13px] prose prose-invert prose-p:leading-relaxed prose-pre:p-0 prose-pre:m-0 prose-pre:bg-transparent prose-pre:border-none overflow-hidden break-words">
+                       <ReactMarkdown
+                         components={{
+                           code: InteractivePreview
+                         }}
+                       >
+                         {m.content}
+                       </ReactMarkdown>
                      </div>
                    </div>
                  );
