@@ -5,6 +5,7 @@ import { SettingsView } from "./views/SettingsView";
 import { StudioView } from "./views/StudioView";
 import { ChannelsView } from "./views/ChannelsView";
 import { OverviewView } from "./views/OverviewView";
+import { SessionsView } from "./views/SessionsView";
 import { TopBar } from "./components/TopBar";
 
 // Generic View Shell for Dashboard Sections
@@ -105,7 +106,7 @@ export default function App() {
       case 'instances':
         return <PlaceholderView title="Nodes & Instances" description="View child agents and swarms actively spawned across your infrastructure." />;
       case 'sessions':
-        return <PlaceholderView title="Active Sessions" description="Inspect live memory contexts, tokens used, and agent transcripts." />;
+        return <SessionsView />;
       case 'cron':
         return <PlaceholderView title="Cron Jobs" description="Scheduled autonomous routines and repeating node tasks." />;
       case 'skills':

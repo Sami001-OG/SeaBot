@@ -284,6 +284,8 @@ export function StudioView() {
   // === Terminal Output State ===
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
   
+  const sessionIdRef = useRef<string>(`sess_${Date.now()}`);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const terminalEndRef = useRef<HTMLDivElement>(null);
   const providerMenuRef = useRef<HTMLDivElement>(null);
@@ -350,8 +352,38 @@ export function StudioView() {
        }
     };
     document.addEventListener("mousedown", clickOut);
+    
+    // Check for Resume Session
+    const resumeSessionId = localStorage.getItem('seabot-resume-session');
+    if (resumeSessionId) {
+      sessionIdRef.current = resumeSessionId;
+      localStorage.removeItem('seabot-resume-session');
+      fetch(`/api/fs/read?path=system_memory/sessions/${resumeSessionId}.json`)
+        .then(res => res.json())
+        .then(data => {
+           if (data && data.content) {
+              const parsed = JSON.parse(data.content);
+              if (parsed.messages) setMessages(parsed.messages);
+           }
+        }).catch(() => {});
+    }
+    
     return () => document.removeEventListener("mousedown", clickOut);
   }, []);
+
+  // Sync to FileSystem Automatically when messages update
+  useEffect(() => {
+    if (messages.length > 0) {
+      fetch('/api/fs/write', {
+         method: 'POST',
+         headers: {'Content-Type': 'application/json'},
+         body: JSON.stringify({
+            targetPath: `system_memory/sessions/${sessionIdRef.current}.json`,
+            content: JSON.stringify({ id: sessionIdRef.current, timestamp: parseInt(sessionIdRef.current.replace('sess_', '')), messages }, null, 2)
+         })
+      }).catch(() => {});
+    }
+  }, [messages]);
 
   const loadDirectory = async (pathStr: string) => {
     try {

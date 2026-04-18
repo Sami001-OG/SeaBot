@@ -52,6 +52,7 @@ export function Sidebar({
                 const isActive = currentView === item.id;
                 return (
                   <button
+                    id={`nav-${item.id}`}
                     key={item.id}
                     onClick={() => setCurrentView(item.id)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-[13px] ${
