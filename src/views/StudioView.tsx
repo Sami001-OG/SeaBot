@@ -8,7 +8,7 @@ interface FSItem {
   path: string;
 }
 
-const MODEL_DIRECTORY = [
+const INITIAL_MODEL_DIRECTORY = [
   { provider: "Google Gemini", models: [
     { id: "gemini:gemini-2.5-flash", name: "Gemini 2.5 Flash", badge: "Fast" },
     { id: "gemini:gemini-2.5-pro", name: "Gemini 2.5 Pro", badge: "Smart" },
@@ -53,6 +53,8 @@ export function StudioView() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [provider, setProvider] = useState("gemini:gemini-2.5-flash"); // Exact string mapping
+  const [modelDirectory, setModelDirectory] = useState(INITIAL_MODEL_DIRECTORY);
+  const [modelSearch, setModelSearch] = useState("");
   const [showProviderMenu, setShowProviderMenu] = useState(false);
   const [isAutoMode, setIsAutoMode] = useState(true);
   
@@ -67,6 +69,32 @@ export function StudioView() {
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { terminalEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [terminalLogs]);
   useEffect(() => {
+    // Attempt dynamically fetching all available OpenRouter Models
+    fetch("https://openrouter.ai/api/v1/models")
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.data) {
+          const orModels = data.data.map((m: any) => ({
+             id: `openrouter:${m.id}`,
+             name: m.name || m.id,
+             badge: m.context_length >= 100000 ? `${Math.floor(m.context_length/1000)}k` : undefined
+          }));
+          setModelDirectory(prev => {
+             const copy = [...prev];
+             const orIdx = copy.findIndex(g => g.provider === "OpenRouter");
+             if (orIdx >= 0) {
+                const existingIds = new Set(copy[orIdx].models.map(x => x.id));
+                const uniqueNew = orModels.filter((x: any) => !existingIds.has(x.id));
+                copy[orIdx] = { 
+                   ...copy[orIdx], 
+                   models: [...copy[orIdx].models, ...uniqueNew] 
+                };
+             }
+             return copy;
+          });
+        }
+      }).catch(err => console.error("Could not fetch OpenRouter models:", err));
+      
     const pendingQuery = localStorage.getItem("seabot-pending-workflow");
     if (pendingQuery) {
       setInput(pendingQuery);
@@ -192,13 +220,21 @@ export function StudioView() {
   };
 
   const getProviderName = () => {
-     for (const group of MODEL_DIRECTORY) {
+     for (const group of modelDirectory) {
         for (const mod of group.models) {
            if (mod.id === provider) return mod.name;
         }
      }
      return "Select Model";
   };
+
+  const filteredDirectory = modelDirectory.map(group => ({
+      ...group,
+      models: group.models.filter(m => 
+          m.name.toLowerCase().includes(modelSearch.toLowerCase()) || 
+          m.id.toLowerCase().includes(modelSearch.toLowerCase())
+      )
+  })).filter(group => group.models.length > 0);
 
   return (
     <div className="flex flex-col md:flex-row w-full h-full bg-[#0A0A0A] font-sans overflow-hidden text-[#ededed]">
@@ -338,23 +374,35 @@ export function StudioView() {
                 {getProviderName()}
              </div>
              {showProviderMenu && (
-                <div className="absolute top-10 right-4 w-64 bg-[#161616] border border-[#333] rounded-md shadow-2xl z-50 py-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                  <div className="px-3 pb-2 text-[10px] font-bold text-[#555] uppercase tracking-wider border-b border-[#222] mb-1">Select Gateway Model</div>
-                  {MODEL_DIRECTORY.map((group) => (
-                      <div key={group.provider} className="mb-2">
-                         <div className="px-3 py-1.5 text-[11px] font-bold text-[#888]">{group.provider}</div>
-                         {group.models.map(mod => (
-                            <button 
-                              key={mod.id} 
-                              onClick={() => { setProvider(mod.id); setShowProviderMenu(false); }} 
-                              className={`w-full text-left px-4 py-1.5 text-[12px] flex items-center justify-between hover:bg-blue-500/10 transition-colors ${provider === mod.id ? 'text-blue-400 bg-blue-500/5' : 'text-[#ccc]'}`}
-                            >
-                               {mod.name}
-                               {mod.badge && <span className={`text-[9px] px-1.5 py-0.5 rounded ${mod.badge === 'Fast' ? 'bg-green-500/20 text-green-400' : 'bg-purple-500/20 text-purple-400'}`}>{mod.badge}</span>}
-                            </button>
-                         ))}
-                      </div>
-                  ))}
+                <div className="absolute top-10 right-4 w-64 md:w-72 bg-[#161616] border border-[#333] rounded-md shadow-2xl z-50 flex flex-col max-h-[60vh]">
+                  <div className="px-3 pt-3 pb-2 border-b border-[#222] shrink-0">
+                     <div className="text-[10px] font-bold text-[#555] uppercase tracking-wider mb-2">Select Gateway Model</div>
+                     <input 
+                        type="text" 
+                        placeholder="Search 250+ models..."
+                        value={modelSearch}
+                        onChange={e => setModelSearch(e.target.value)}
+                        className="w-full bg-[#111] border border-[#333] hover:border-[#444] text-[#ededed] text-[11px] px-2.5 py-1.5 rounded outline-none focus:border-blue-500 custom-scrollbar"
+                     />
+                  </div>
+                  <div className="overflow-y-auto custom-scrollbar p-0 py-2">
+                    {filteredDirectory.length === 0 && <div className="text-[#555] text-[11px] text-center py-4">No models found...</div>}
+                    {filteredDirectory.map((group) => (
+                        <div key={group.provider} className="mb-2">
+                           <div className="px-3 py-1.5 text-[11px] font-bold text-[#888]">{group.provider}</div>
+                           {group.models.map(mod => (
+                              <button 
+                                key={mod.id} 
+                                onClick={() => { setProvider(mod.id); setShowProviderMenu(false); setModelSearch(""); }} 
+                                className={`w-full text-left px-4 py-1.5 text-[12px] flex items-center justify-between hover:bg-blue-500/10 transition-colors ${provider === mod.id ? 'text-blue-400 bg-blue-500/5' : 'text-[#ccc]'}`}
+                              >
+                                 <span className="truncate pr-2">{mod.name}</span>
+                                 {mod.badge && <span className={`text-[9px] px-1.5 py-0.5 rounded shrink-0 ${mod.badge === 'Fast' ? 'bg-green-500/20 text-green-400' : mod.badge === 'Smart' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>{mod.badge}</span>}
+                              </button>
+                           ))}
+                        </div>
+                    ))}
+                  </div>
                 </div>
               )}
           </div>
