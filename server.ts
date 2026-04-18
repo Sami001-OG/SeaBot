@@ -5,12 +5,60 @@ import fs from "fs/promises";
 import fsSync from "fs";
 import { runRealAgent } from "./src/backend/RealAgent.js";
 import { VectorDB } from "./src/backend/VectorDB.js";
+import { TelegramPoller } from "./src/backend/TelegramPoller.js";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   app.use(express.json());
+
+  // Automatically start long-polling for Telegram (safe if token missing)
+  TelegramPoller.start();
+
+  // WhatsApp (Twilio) Webhook Integration Endpoint
+  app.post("/api/webhook/twilio", express.urlencoded({ extended: true }), async (req, res) => {
+    // Twilio hits this when a WhatsApp message arrives
+    const incomingMsg = req.body.Body;
+    const fromNum = req.body.From; // e.g. "whatsapp:+1234567890"
+
+    // Respond immediately to prevent Twilio timeout (15s limit)
+    res.set("Content-Type", "text/xml");
+    res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Message>SeaBot acknowledged. Thinking...</Message></Response>`);
+
+    // Run the agent in the background
+    try {
+      console.log(`[WhatsApp] Task Initiated: ${incomingMsg}`);
+      const finalAnswer = await runRealAgent(incomingMsg, () => {}, 0, "gemini:gemini-3.1-pro");
+      
+      // Dispatch result using Twilio API
+      const twilioSid = TelegramPoller.getEnv('TWILIO_ACCOUNT_SID');
+      const twilioAuth = TelegramPoller.getEnv('TWILIO_AUTH_TOKEN');
+      const twilioNumber = TelegramPoller.getEnv('TWILIO_WHATSAPP_NUMBER'); // e.g. "whatsapp:+14155238886"
+
+      if (twilioSid && twilioAuth && twilioNumber) {
+         const creds = Buffer.from(`${twilioSid}:${twilioAuth}`).toString('base64');
+         const params = new URLSearchParams();
+         params.append('To', fromNum);
+         params.append('From', twilioNumber);
+         // Twilio API limits single messages to 1600 chars sometimes, truncate if massively long
+         params.append('Body', `[SeaBot OS Completed]\n\n${finalAnswer.substring(0, 1500)}`);
+         
+         await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`, {
+            method: 'POST',
+            headers: { 
+              'Authorization': `Basic ${creds}`,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: params
+         });
+      } else {
+         console.error("[WhatsApp] Missing Twilio credentials in environment for backend reply.");
+      }
+    } catch (e: any) {
+      console.error("[WhatsApp] Agent execution failed:", e.message);
+    }
+  });
 
   // Setup/Initialization Endpoint for the Terminal UI config
   app.post("/api/setup", async (req, res) => {

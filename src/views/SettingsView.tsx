@@ -137,6 +137,59 @@ export function SettingsView() {
               Add multiple comma-separated keys under environment variables like <code className="text-white">PROVIDER_API_KEYS</code> or <code className="text-white">PROVIDER_API_KEY_1</code>. The router will automatically load-balance requests across the array to avoid rate limits.
             </p>
           </div>
+
+          <div className="bg-panel border border-border-default rounded-xl p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-3 border-b border-white/5 pb-3">
+              <Network className="w-5 h-5 text-green-400" />
+              <h3 className="font-semibold text-white">Omni-Channel Webhooks</h3>
+            </div>
+            <p className="text-xs text-text-dim leading-relaxed mb-4">
+              Control your agent externally from your mobile device via Long-Polling (Telegram) or webhook (WhatsApp).
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-text-dim uppercase tracking-wider mb-1">Telegram Bot Token</label>
+                <input
+                  type="password"
+                  value={config['TELEGRAM_BOT_TOKEN'] || ''}
+                  onChange={(e) => handleChange('TELEGRAM_BOT_TOKEN', e.target.value)}
+                  placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+                  className="w-full bg-bg-base border border-border-default rounded-md px-3 py-2 text-xs text-white focus:border-accent focus:ring-1 focus:ring-accent outline-none font-mono placeholder:text-text-dim/30"
+                />
+              </div>
+              <div className="pt-2 border-t border-white/5">
+                <label className="block text-[10px] font-bold text-text-dim uppercase tracking-wider mb-1 mt-1">Twilio Account SID</label>
+                <input
+                  type="password"
+                  value={config['TWILIO_ACCOUNT_SID'] || ''}
+                  onChange={(e) => handleChange('TWILIO_ACCOUNT_SID', e.target.value)}
+                  placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  className="w-full bg-bg-base border border-border-default rounded-md px-3 py-2 text-xs text-white focus:border-accent focus:ring-1 focus:ring-accent outline-none font-mono placeholder:text-text-dim/30 mb-3"
+                />
+                
+                <label className="block text-[10px] font-bold text-text-dim uppercase tracking-wider mb-1">Twilio Auth Token</label>
+                <input
+                  type="password"
+                  value={config['TWILIO_AUTH_TOKEN'] || ''}
+                  onChange={(e) => handleChange('TWILIO_AUTH_TOKEN', e.target.value)}
+                  placeholder="xxxxxxxxxxxxxxxxxxx"
+                  className="w-full bg-bg-base border border-border-default rounded-md px-3 py-2 text-xs text-white focus:border-accent focus:ring-1 focus:ring-accent outline-none font-mono placeholder:text-text-dim/30 mb-3"
+                />
+
+                <label className="block text-[10px] font-bold text-text-dim uppercase tracking-wider mb-1">Twilio WhatsApp Number</label>
+                <input
+                  type="text"
+                  value={config['TWILIO_WHATSAPP_NUMBER'] || ''}
+                  onChange={(e) => handleChange('TWILIO_WHATSAPP_NUMBER', e.target.value)}
+                  placeholder="whatsapp:+14155238886"
+                  className="w-full bg-bg-base border border-border-default rounded-md px-3 py-2 text-xs text-white focus:border-accent focus:ring-1 focus:ring-accent outline-none font-mono placeholder:text-text-dim/30"
+                />
+              </div>
+              <p className="text-[10px] text-text-dim italic mt-2">
+                 WhatsApp Hook target URL: <code className="text-white">/api/webhook/twilio</code> 
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Right Column: Model Providers Catalog */}
