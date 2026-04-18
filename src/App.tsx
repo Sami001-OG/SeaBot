@@ -3,6 +3,7 @@ import { Sidebar } from "./components/Sidebar";
 import { SetupTerminalView } from "./views/SetupTerminalView";
 import { SettingsView } from "./views/SettingsView";
 import { StudioView } from "./views/StudioView";
+import { ChannelsView } from "./views/ChannelsView";
 import { TopBar } from "./components/TopBar";
 
 // Generic View Shell for Dashboard Sections
@@ -99,7 +100,7 @@ export default function App() {
       case 'overview':
         return <PlaceholderView title="System Overview" description="High-level telemetry, uptime, and aggregated cluster metrics." />;
       case 'channels':
-        return <PlaceholderView title="Channels & Webhooks" description="Manage active connections across Telegram, Slack, GitHub, and Twilio." />;
+        return <ChannelsView />;
       case 'instances':
         return <PlaceholderView title="Nodes & Instances" description="View child agents and swarms actively spawned across your infrastructure." />;
       case 'sessions':
