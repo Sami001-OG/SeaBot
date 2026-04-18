@@ -1,14 +1,18 @@
 import { GoogleGenAI } from "@google/genai";
 
-export type ModelProvider = 'gemini' | 'openai' | 'anthropic' | 'groq' | 'openrouter' | 'mistral';
+export type ModelProvider = string; // e.g., "openai:gpt-4o", "anthropic:claude-3-5-sonnet-20241022"
 
 /**
  * ModelRouter
  * Real OpenClaw Gateway router mapping local API keys into cloud executions.
+ * Now supports dynamic exact model targeting (provider:modelName).
  */
 export class ModelRouter {
-  static async generate(provider: string, prompt: string): Promise<string> {
-    const prov = provider.toLowerCase();
+  static async generate(providerString: string, prompt: string): Promise<string> {
+    const parts = providerString.split(':');
+    const prov = parts[0].toLowerCase();
+    // Re-join the rest in case models have colons (e.g., OpenRouter paths)
+    const exactModel = parts.slice(1).join(':'); 
     
     try {
       if (prov === 'openai') {
@@ -18,7 +22,7 @@ export class ModelRouter {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
             body: JSON.stringify({
-              model: "gpt-4o-mini",
+              model: exactModel || "gpt-4o-mini",
               messages: [{ role: "user", content: prompt }]
             })
          });
@@ -38,7 +42,7 @@ export class ModelRouter {
               "anthropic-version": "2023-06-01"
             },
             body: JSON.stringify({
-              model: "claude-3-5-sonnet-20241022",
+              model: exactModel || "claude-3-5-sonnet-20241022",
               max_tokens: 4096,
               messages: [{ role: "user", content: prompt }]
             })
@@ -55,7 +59,7 @@ export class ModelRouter {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
             body: JSON.stringify({
-              model: "llama3-70b-8192", // Fast open source model
+              model: exactModel || "llama3-70b-8192", // Fast open source model
               messages: [{ role: "user", content: prompt }]
             })
          });
@@ -70,8 +74,9 @@ export class ModelRouter {
          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+            // Include HTTP-Referer for OpenRouter rankings optionally
             body: JSON.stringify({
-              model: "anthropic/claude-3.5-sonnet", // Or whatever defaults they mapped
+              model: exactModel || "anthropic/claude-3.5-sonnet",
               messages: [{ role: "user", content: prompt }]
             })
          });
@@ -87,7 +92,7 @@ export class ModelRouter {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
             body: JSON.stringify({
-              model: "mistral-large-latest",
+              model: exactModel || "mistral-large-latest",
               messages: [{ role: "user", content: prompt }]
             })
          });
@@ -102,13 +107,13 @@ export class ModelRouter {
           if (!apiKey) throw new Error("GEMINI_API_KEY is missing. Default AI requires this.");
           const ai = new GoogleGenAI({ apiKey: apiKey });
           const response = await ai.models.generateContent({
-             model: "gemini-2.5-flash", // Fast routing tier
+             model: exactModel || "gemini-2.5-flash", // Dynamic override
              contents: prompt,
           });
           return response.text || "";
       }
     } catch (e: any) {
-      throw new Error(`ModelRouter Gateway Error [${provider}]: ${e.message}`);
+      throw new Error(`ModelRouter Gateway Error [${prov}]: ${e.message}`);
     }
   }
 }

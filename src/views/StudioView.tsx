@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Folder, FileText, Search, Code, Save, RefreshCw, Terminal, Send, Play, Bot, ChevronDown, Check, Activity, X, Plus, Server, Network } from "lucide-react";
+import { Folder, FileText, Search, Code, Save, RefreshCw, Terminal, Send, Play, Bot, ChevronDown, Check, Activity, X, Server, Network, ShieldAlert, CheckCircle2 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 
 interface FSItem {
@@ -8,7 +8,38 @@ interface FSItem {
   path: string;
 }
 
+const MODEL_DIRECTORY = [
+  { provider: "Google Gemini", models: [
+    { id: "gemini:gemini-2.5-flash", name: "Gemini 2.5 Flash", badge: "Fast" },
+    { id: "gemini:gemini-2.5-pro", name: "Gemini 2.5 Pro", badge: "Smart" },
+  ]},
+  { provider: "OpenAI", models: [
+    { id: "openai:gpt-4o", name: "GPT-4o", badge: "Smart" },
+    { id: "openai:gpt-4o-mini", name: "GPT-4o Mini", badge: "Fast" },
+    { id: "openai:o1-mini", name: "o1 Mini", badge: "Reason" }
+  ]},
+  { provider: "Anthropic", models: [
+    { id: "anthropic:claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", badge: "Smart" },
+    { id: "anthropic:claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku", badge: "Fast" },
+    { id: "anthropic:claude-3-opus-20240229", name: "Claude 3.0 Opus" }
+  ]},
+  { provider: "Groq (Local/Fast)", models: [
+    { id: "groq:llama3-70b-8192", name: "Llama 3 70B", badge: "Fast" },
+    { id: "groq:mixtral-8x7b-32768", name: "Mixtral 8x7B" }
+  ]},
+  { provider: "Mistral", models: [
+    { id: "mistral:mistral-large-latest", name: "Mistral Large" },
+  ]},
+  { provider: "OpenRouter", models: [
+    { id: "openrouter:anthropic/claude-3.5-sonnet", name: "OR: Claude 3.5 Sonnet" },
+    { id: "openrouter:google/gemini-2.5-pro", name: "OR: Gemini 2.5 Pro" },
+    { id: "openrouter:liquid/lfm-40b", name: "OR: LFM 40B" }
+  ]}
+];
+
 export function StudioView() {
+  const [mobilePane, setMobilePane] = useState<'explorer' | 'editor' | 'chat'>('chat');
+
   // === FS Explorer State ===
   const [currentPath, setCurrentPath] = useState("");
   const [items, setItems] = useState<FSItem[]>([]);
@@ -20,7 +51,8 @@ export function StudioView() {
   const [messages, setMessages] = useState<{ role: string; content: string; type?: string }[]>([]);
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [provider, setProvider] = useState("gemini");
+
+  const [provider, setProvider] = useState("gemini:gemini-2.5-flash"); // Exact string mapping
   const [showProviderMenu, setShowProviderMenu] = useState(false);
   const [isAutoMode, setIsAutoMode] = useState(true);
   
@@ -29,8 +61,8 @@ export function StudioView() {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const terminalEndRef = useRef<HTMLDivElement>(null);
+  const providerMenuRef = useRef<HTMLDivElement>(null);
 
-  // Initial Loaders
   useEffect(() => { loadDirectory(currentPath); }, [currentPath]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { terminalEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [terminalLogs]);
@@ -38,12 +70,20 @@ export function StudioView() {
     const pendingQuery = localStorage.getItem("seabot-pending-workflow");
     if (pendingQuery) {
       setInput(pendingQuery);
+      setMobilePane('chat');
       localStorage.removeItem("seabot-pending-workflow");
       setTimeout(() => { document.getElementById("studio-submit-btn")?.click(); }, 50);
     }
+    
+    const clickOut = (e: MouseEvent) => {
+       if (providerMenuRef.current && !providerMenuRef.current.contains(e.target as Node)) {
+          setShowProviderMenu(false);
+       }
+    };
+    document.addEventListener("mousedown", clickOut);
+    return () => document.removeEventListener("mousedown", clickOut);
   }, []);
 
-  // === FS Methods ===
   const loadDirectory = async (pathStr: string) => {
     try {
       const res = await fetch(`/api/fs/list?path=${encodeURIComponent(pathStr)}`);
@@ -62,6 +102,10 @@ export function StudioView() {
       const data = await res.json();
       setFileContent(data.content);
       setSelectedFilePath(filePath);
+      
+      if (window.innerWidth < 768) {
+         setMobilePane('editor');
+      }
     } catch(e) { alert("Cannot open binary or inaccessible file."); }
   };
 
@@ -74,6 +118,7 @@ export function StudioView() {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ targetPath: selectedFilePath, content: fileContent })
       });
+      pushTerminalLog(`[FS] Saved ${selectedFilePath}`);
     } catch(e) {} finally { setIsSaving(false); }
   };
 
@@ -81,7 +126,6 @@ export function StudioView() {
     setTerminalLogs(prev => [...prev, `[${new Date().toISOString().split('T')[1].split('.')[0]}] ${log}`]);
   };
 
-  // === Chat Methods ===
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!input.trim() || isProcessing) return;
@@ -90,13 +134,13 @@ export function StudioView() {
     setInput("");
     setMessages(prev => [...prev, { role: "user", content: objective }]);
     setIsProcessing(true);
-    pushTerminalLog(`> INITIATING OBJECTIVE: ${objective}`);
+    pushTerminalLog(`> INITIATING OBJECTIVE (${provider}): ${objective}`);
 
     try {
       const response = await fetch("/api/agent/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ objective, provider }),
+        body: JSON.stringify({ objective, provider }), // Send exact provider mapping e.g openai:gpt-4o
       });
 
       if (!response.body) throw new Error("No response body");
@@ -124,11 +168,10 @@ export function StudioView() {
                  setMessages(prev => [...prev, { role: "system", content: `[ACTION] ${data.content}` }]);
                  pushTerminalLog(`[ACTION ENGINED] ${data.content}`);
                  
-                 // MAGIC: If the agent writes to the filesystem, auto-refresh the UI
                  if (data.content.includes("fs_write")) {
                    setTimeout(() => {
                      loadDirectory(currentPath);
-                     if (selectedFilePath) openFile(selectedFilePath); // Reload active file to show injection live
+                     if (selectedFilePath) openFile(selectedFilePath);
                    }, 1000);
                  }
               } else if (data.type === 'observation') {
@@ -148,23 +191,43 @@ export function StudioView() {
     }
   };
 
-  const providers = ["gemini", "openai", "anthropic", "groq", "openrouter", "mistral"];
+  const getProviderName = () => {
+     for (const group of MODEL_DIRECTORY) {
+        for (const mod of group.models) {
+           if (mod.id === provider) return mod.name;
+        }
+     }
+     return "Select Model";
+  };
 
   return (
-    <div className="flex w-full h-[calc(100vh-60px)] -mt-4 md:-mt-6 ml-[-1rem] md:ml-[-1.5rem] w-[calc(100%+2rem)] md:w-[calc(100%+3rem)] bg-[#0b0c0e] font-sans overflow-hidden">
+    <div className="flex flex-col md:flex-row w-full h-full bg-[#0A0A0A] font-sans overflow-hidden text-[#ededed]">
       
-      {/* LEFT PANE: EXPLORER */}
-      <div className="w-[260px] border-r border-[#1a1c23] flex flex-col bg-[#0b0c0e] shrink-0">
-        <div className="h-10 border-b border-[#1a1c23] flex items-center px-4 text-[11px] font-bold text-text-dim uppercase tracking-wider justify-between bg-[#111216]">
-          <div className="flex items-center gap-2"><Folder className="w-3.5 h-3.5" /> Project Files</div>
-          <button onClick={() => loadDirectory(currentPath)}><RefreshCw className="w-3 h-3 hover:text-white transition-colors" /></button>
+      {/* MOBILE NAV BAR */}
+      <div className="md:hidden flex items-center border-b border-[#222] bg-[#111] shrink-0 w-full h-[46px]">
+         <button onClick={() => setMobilePane('explorer')} className={`flex-1 flex justify-center items-center h-full text-[11px] uppercase tracking-wider font-bold transition-colors ${mobilePane === 'explorer' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-[#777] border-b-2 border-transparent hover:text-[#ededed]'}`}>
+            <Folder className="w-3.5 h-3.5 mr-2" /> Files
+         </button>
+         <button onClick={() => setMobilePane('editor')} className={`flex-1 flex justify-center items-center h-full text-[11px] uppercase tracking-wider font-bold transition-colors ${mobilePane === 'editor' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-[#777] border-b-2 border-transparent hover:text-[#ededed]'}`}>
+            <Code className="w-3.5 h-3.5 mr-2" /> Code
+         </button>
+         <button onClick={() => setMobilePane('chat')} className={`flex-1 flex justify-center items-center h-full text-[11px] uppercase tracking-wider font-bold transition-colors ${mobilePane === 'chat' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-[#777] border-b-2 border-transparent hover:text-[#ededed]'}`}>
+            <Bot className="w-3.5 h-3.5 mr-2" /> Agent
+         </button>
+      </div>
+
+      {/* 1. LEFT PANE: EXPLORER */}
+      <div className={`${mobilePane === 'explorer' ? 'flex' : 'hidden'} md:flex w-full md:w-[220px] lg:w-[260px] border-r border-[#222] flex-col bg-[#111111] shrink-0 h-full`}>
+        <div className="h-[46px] border-b border-[#222] flex items-center px-4 text-[11px] font-bold text-[#888] uppercase tracking-wider justify-between bg-[#111] shrink-0">
+          <div className="flex items-center gap-2"><Folder className="w-3.5 h-3.5" /> EXPLORER</div>
+          <button onClick={() => loadDirectory(currentPath)}><RefreshCw className="w-3.5 h-3.5 hover:text-white transition-colors" /></button>
         </div>
         
-        <div className="p-2 border-b border-[#1a1c23] text-xs font-mono break-all flex items-center gap-1 bg-[#0b0c0e]">
-          <span className="text-accent cursor-pointer hover:underline" onClick={() => setCurrentPath("")}>~</span>
-          {currentPath && <span className="text-text-dim">/{currentPath}</span>}
+        <div className="p-2 border-b border-[#222] text-xs font-mono flex items-center gap-1 bg-[#161616] shrink-0 overflow-x-hidden">
+          <span className="text-blue-400 cursor-pointer hover:underline shrink-0" onClick={() => setCurrentPath("")}>~</span>
+          {currentPath && <span className="text-[#888] truncate">/{currentPath}</span>}
           {currentPath !== "" && (
-             <button className="ml-auto text-text-dim hover:text-white" onClick={() => {
+             <button className="ml-auto text-[#888] hover:text-white shrink-0" onClick={() => {
                 const parts = currentPath.split('/');
                 parts.pop();
                 setCurrentPath(parts.join('/'));
@@ -172,77 +235,84 @@ export function StudioView() {
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-1.5 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
           {items.map(item => (
             <button 
               key={item.name}
-              className={`w-full flex items-center gap-2.5 px-2 py-1 text-left text-[13px] rounded-md transition-colors ${selectedFilePath === item.path ? 'bg-accent/15 text-accent font-medium' : 'text-[#a1a1aa] hover:bg-white/5 hover:text-white'}`}
+              className={`w-full flex items-center gap-2.5 px-2 py-1.5 text-left text-[13px] rounded-md transition-colors ${selectedFilePath === item.path ? 'bg-blue-500/10 text-blue-400 font-medium' : 'text-[#a1a1aa] hover:bg-white/5 hover:text-[#ededed]'}`}
               onClick={() => {
                 if (item.isDirectory) setCurrentPath(item.path);
                 else openFile(item.path);
               }}
             >
-              {item.isDirectory ? <Folder className="w-4 h-4 text-[#38bdf8] shrink-0" /> : <FileText className="w-4 h-4 text-text-dim shrink-0" />}
+              {item.isDirectory ? <Folder className="w-4 h-4 text-blue-400 shrink-0" /> : <FileText className="w-4 h-4 text-[#777] shrink-0" />}
               <span className="truncate">{item.name}</span>
             </button>
           ))}
-          {items.length === 0 && <div className="text-xs text-text-dim text-center py-6 border border-dashed border-[#1a1c23] m-2 rounded">Directory Empty</div>}
+          {items.length === 0 && <div className="text-xs text-[#555] text-center py-6 border border-dashed border-[#333] m-2 rounded">Directory Empty</div>}
         </div>
       </div>
 
-      {/* CENTER PANE: EDITOR & TRACE TERMINAL */}
-      <div className="flex-1 flex flex-col border-r border-[#1a1c23] min-w-0 bg-[#0f1115]">
+      {/* 2. CENTER PANE: EDITOR & TERMINAL */}
+      <div className={`${mobilePane === 'editor' ? 'flex' : 'hidden'} md:flex flex-1 flex-col border-r border-[#222] min-w-0 bg-[#0A0A0A] h-full`}>
         
-        {/* Code Editor */}
-        <div className="flex-1 flex flex-col min-h-0">
+        {/* Code Editor Area */}
+        <div className="flex-1 flex flex-col min-h-0 relative">
             {selectedFilePath ? (
               <>
-                <div className="h-10 border-b border-[#1a1c23] px-3 flex items-center justify-between bg-[#0b0c0e]">
-                   <div className="flex items-center gap-2 text-[12px] text-text-main font-mono px-3 py-1 bg-white/5 rounded-t-md border-t border-l border-r border-[#1a1c23] opacity-100">
-                     <Code className="w-4 h-4 text-accent" /> {selectedFilePath.split('/').pop()}
-                     <X className="w-3 h-3 ml-2 hover:text-white cursor-pointer" onClick={() => setSelectedFilePath(null)} />
+                {/* Editor Tabs */}
+                <div className="h-[46px] border-b border-[#222] px-2 flex items-center justify-between bg-[#111] shrink-0">
+                   <div className="flex items-center h-full max-w-[70%] overflow-hidden">
+                     <div className="flex items-center gap-2 text-[12px] text-[#ededed] font-mono px-4 h-full bg-[#0A0A0A] border-t-2 border-blue-500 border-r border-[#222] border-l border-l-[#222] truncate">
+                       <Code className="w-4 h-4 text-blue-400 shrink-0" /> {selectedFilePath.split('/').pop()}
+                       <X className="w-3.5 h-3.5 ml-3 text-[#666] hover:text-white cursor-pointer shrink-0" onClick={() => setSelectedFilePath(null)} />
+                     </div>
                    </div>
                    <button 
                       onClick={handleSave}
-                      className="flex items-center gap-1.5 bg-accent text-white px-3 py-1 rounded text-[11px] font-bold tracking-wide transition-colors hover:bg-accent/80"
+                      className="flex items-center gap-1.5 hover:bg-blue-600/20 text-blue-400 px-3 py-1.5 rounded text-[11px] font-bold tracking-wide transition-colors shrink-0"
                    >
                      {isSaving ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} SAVE
                    </button>
                 </div>
-                <div className="flex-1 relative">
+                
+                {/* Editor Body */}
+                <div className="flex-1 relative flex">
                   <textarea 
                     value={fileContent || ""}
                     onChange={(e) => setFileContent(e.target.value)}
                     spellCheck={false}
-                    className="absolute inset-0 w-full h-full bg-transparent p-4 text-[13px] font-mono text-[#d4d4d8] leading-relaxed outline-none resize-none custom-scrollbar"
+                    className="flex-1 w-full bg-transparent p-4 text-[13px] font-mono whitespace-pre overflow-auto text-[#d4d4d4] leading-relaxed outline-none resize-none custom-scrollbar"
                   />
-                  <div className="absolute right-4 bottom-4 text-[10px] font-mono text-text-dim bg-panel px-2 py-1 rounded shadow-sm border border-border-default z-10 pointer-events-none">
+                  <div className="absolute right-4 bottom-4 text-[10px] font-mono text-[#555] bg-[#111] px-2 py-1 rounded border border-[#222] pointer-events-none z-10 hidden md:block">
                      {selectedFilePath}
                   </div>
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-text-dim flex-col gap-3 bg-[#0f1115]">
-                 <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-2">
-                   <Activity className="w-8 h-8 opacity-40 text-accent" />
+              <div className="flex-1 flex items-center justify-center text-[#555] flex-col gap-3">
+                 <div className="w-16 h-16 rounded-full bg-blue-500/5 flex items-center justify-center mb-2 border border-blue-500/10">
+                   <Activity className="w-8 h-8 opacity-60 text-blue-400" />
                  </div>
-                 <p className="text-sm font-medium text-white/50">SeaBot Local Engine Active</p>
-                 <p className="text-[11px] font-mono text-text-dim">Waiting for agent to modify files or UI selection...</p>
+                 <p className="text-sm font-medium text-[#888]">SeaBot Integrated OS Active</p>
+                 <p className="text-[12px] font-mono text-[#555]">Select a file or prompt the agent to generate code.</p>
               </div>
             )}
         </div>
 
         {/* Console / Trace Bottom Panel */}
-        <div className="h-48 border-t border-[#1a1c23] flex flex-col bg-[#0b0c0e]">
-           <div className="h-8 border-b border-[#1a1c23] flex items-center px-4 text-[11px] font-bold text-text-dim uppercase tracking-wider bg-[#111216] gap-4">
-              <span className="text-white border-b-2 border-accent pb-[7px] transform translate-y-[1px]">Terminal Trace</span>
-              <span className="hover:text-white cursor-pointer">Problems</span>
-              <span className="hover:text-white cursor-pointer">Output</span>
+        <div className="h-[200px] md:h-[250px] border-t border-[#222] flex flex-col bg-[#111] shrink-0">
+           <div className="h-9 border-b border-[#222] flex items-center px-4 text-[10px] md:text-[11px] font-medium text-[#888] uppercase tracking-wider bg-[#111] gap-4 md:gap-6 shrink-0">
+              <span className="text-[#ededed] border-b-[2px] border-blue-500 pb-[8px] transform translate-y-[4px]">Terminal Trace</span>
+              <span className="hover:text-[#ededed] cursor-pointer pb-[8px] transform translate-y-[4px] border-b-[2px] border-transparent">Output</span>
+              <span className="hover:text-[#ededed] cursor-pointer pb-[8px] transform translate-y-[4px] border-b-[2px] border-transparent">Ports</span>
            </div>
-           <div className="flex-1 p-2 overflow-y-auto font-mono text-[11px] custom-scrollbar text-[#4ade80]">
-              {terminalLogs.length === 0 && <div className="text-text-dim italic">Waiting for command execution...</div>}
+           <div className="flex-1 p-3 overflow-y-auto font-mono text-[11px] md:text-[12px] leading-relaxed custom-scrollbar bg-[#0A0A0A] text-[#a1a1aa]">
+              {terminalLogs.length === 0 && <div className="text-[#555] italic">Waiting for command execution...</div>}
               {terminalLogs.map((log, i) => (
-                 <div key={i} className={`whitespace-pre-wrap ${log.includes('[ERROR]') || log.includes('[FATAL]') ? 'text-red-400' : log.includes('INITIATING') ? 'text-accent' : ''}`}>{log}</div>
+                 <div key={i} className={`whitespace-pre-wrap break-all md:break-normal ${log.includes('[ERROR]') || log.includes('[FATAL]') ? 'text-red-400' : log.includes('INITIATING') ? 'text-blue-400' : log.includes('[SUCCESS]') || log.includes('[FS]') ? 'text-green-400' : 'text-[#a1a1aa]'}`}>
+                   <span className="text-[#555]">❯</span> {log}
+                 </div>
               ))}
               <div ref={terminalEndRef} />
            </div>
@@ -250,29 +320,40 @@ export function StudioView() {
 
       </div>
 
-      {/* RIGHT PANE: AGENT CHAT / COMMAND CENTER */}
-      <div className="w-[380px] flex flex-col bg-[#0b0c0e] shrink-0">
+      {/* 3. RIGHT PANE: AGENT CHAT (Command Center) */}
+      <div className={`${mobilePane === 'chat' ? 'flex' : 'hidden'} md:flex w-full md:w-[320px] lg:w-[380px] flex-col bg-[#111] shrink-0 h-full`}>
         
-        {/* Gateway Protocol Header */}
-        <div className="h-14 border-b border-[#1a1c23] px-4 flex items-center justify-between bg-[#111216]">
+        {/* Chat Header */}
+        <div className="h-[46px] border-b border-[#222] px-4 flex items-center justify-between bg-[#111] shrink-0 relative" ref={providerMenuRef}>
           <div className="flex items-center gap-2">
-            <Bot className="w-4 h-4 text-accent" />
-            <span className="font-semibold text-white tracking-tight text-sm">Operator</span>
+            <Bot className="w-4 h-4 text-blue-400" />
+            <span className="font-medium text-[#ededed] text-[13px]">Agent Operator</span>
           </div>
-          <div className="flex items-center gap-2 relative">
+          <div>
              <div 
                  onClick={() => setShowProviderMenu(!showProviderMenu)}
-                 className="flex items-center gap-1.5 text-[11px] font-bold text-white px-2 py-1 border border-[#1a1c23] rounded bg-white/5 hover:bg-white/10 cursor-pointer"
+                 className="flex items-center gap-1.5 text-[10px] font-bold text-[#ededed] px-2 py-1 border border-[#333] rounded-md hover:bg-white/5 cursor-pointer bg-[#161616]"
               >
-                <Server className="w-3 h-3 text-accent" />
-                {provider.toUpperCase()}
+                <Server className="w-3 h-3 text-blue-400" />
+                {getProviderName()}
              </div>
              {showProviderMenu && (
-                <div className="absolute top-8 right-0 w-36 bg-[#111216] border border-[#1a1c23] rounded-md shadow-xl z-50 py-1">
-                  {providers.map(p => (
-                     <button key={p} onClick={() => { setProvider(p); setShowProviderMenu(false); }} className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-text-dim hover:bg-accent/20 hover:text-accent uppercase">
-                        {p}
-                     </button>
+                <div className="absolute top-10 right-4 w-64 bg-[#161616] border border-[#333] rounded-md shadow-2xl z-50 py-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                  <div className="px-3 pb-2 text-[10px] font-bold text-[#555] uppercase tracking-wider border-b border-[#222] mb-1">Select Gateway Model</div>
+                  {MODEL_DIRECTORY.map((group) => (
+                      <div key={group.provider} className="mb-2">
+                         <div className="px-3 py-1.5 text-[11px] font-bold text-[#888]">{group.provider}</div>
+                         {group.models.map(mod => (
+                            <button 
+                              key={mod.id} 
+                              onClick={() => { setProvider(mod.id); setShowProviderMenu(false); }} 
+                              className={`w-full text-left px-4 py-1.5 text-[12px] flex items-center justify-between hover:bg-blue-500/10 transition-colors ${provider === mod.id ? 'text-blue-400 bg-blue-500/5' : 'text-[#ccc]'}`}
+                            >
+                               {mod.name}
+                               {mod.badge && <span className={`text-[9px] px-1.5 py-0.5 rounded ${mod.badge === 'Fast' ? 'bg-green-500/20 text-green-400' : 'bg-purple-500/20 text-purple-400'}`}>{mod.badge}</span>}
+                            </button>
+                         ))}
+                      </div>
                   ))}
                 </div>
               )}
@@ -280,15 +361,15 @@ export function StudioView() {
         </div>
 
         {/* Chat History */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-[#0f1115]">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 md:space-y-5 custom-scrollbar bg-[#0A0A0A]">
             {messages.length === 0 && (
-               <div className="text-center mt-6">
-                 <div className="w-12 h-12 bg-accent/10 border border-accent/20 rounded-xl mx-auto flex items-center justify-center mb-3">
-                   <Network className="w-6 h-6 text-accent" />
+               <div className="text-center mt-10">
+                 <div className="w-14 h-14 bg-blue-500/10 border border-blue-500/20 rounded-2xl mx-auto flex items-center justify-center mb-4">
+                   <Network className="w-7 h-7 text-blue-400" />
                  </div>
-                 <h3 className="text-white font-semibold text-sm mb-1">AI Integrated Workspace</h3>
-                 <p className="text-[12px] text-text-dim max-w-[250px] mx-auto leading-relaxed">
-                   The ultimate coding orchestration engine. Speak to your Operator to manipulate the filesystem natively.
+                 <h3 className="text-[#ededed] font-medium text-[15px] mb-2">How can I help you build?</h3>
+                 <p className="text-[13px] text-[#777] max-w-[260px] mx-auto leading-relaxed">
+                   I govern the filesystem, terminal, and LLM routes. Give me an objective to begin.
                  </p>
                </div>
             )}
@@ -296,8 +377,7 @@ export function StudioView() {
                if (m.role === 'user') {
                  return (
                    <div key={idx} className="flex flex-col items-end">
-                     <span className="text-[10px] text-text-dim mb-1 font-bold uppercase mr-1">CEO (You)</span>
-                     <div className="bg-white/10 text-white px-3.5 py-2.5 rounded-xl rounded-tr-sm text-[13px] border border-white/5 shadow-sm max-w-[90%]">
+                     <div className="bg-[#222] text-[#ededed] px-3.5 py-2.5 md:px-4 md:py-2.5 rounded-2xl rounded-tr-sm text-[12px] md:text-[13px] border border-[#333] shadow-sm max-w-[85%]">
                        {m.content}
                      </div>
                    </div>
@@ -305,7 +385,7 @@ export function StudioView() {
                } else if (m.role === 'system') {
                  return (
                    <div key={idx} className="flex justify-start">
-                     <div className="max-w-[95%] border-l-2 border-accent/50 pl-3 py-1 text-[11px] font-mono text-text-dim break-all whitespace-pre-wrap">
+                     <div className="max-w-[95%] border-l-2 border-blue-500/30 pl-3 py-1 text-[10px] md:text-[11px] font-mono text-[#666] break-all whitespace-pre-wrap">
                        {m.content}
                      </div>
                    </div>
@@ -313,8 +393,7 @@ export function StudioView() {
                } else {
                  return (
                    <div key={idx} className="flex flex-col items-start w-full">
-                     <span className="text-[10px] text-accent mb-1 font-bold uppercase ml-1 flex items-center gap-1"><Bot className="w-3 h-3"/> SEABOT OPERATOR</span>
-                     <div className="w-[95%] bg-[#111216] border border-[#1a1c23] text-text-main px-4 py-3 rounded-xl rounded-tl-sm shadow-sm text-[13px] prose prose-invert prose-p:leading-relaxed prose-pre:bg-[#0b0c0e] prose-pre:border prose-pre:border-[#1a1c23] prose-pre:text-[11px] overflow-hidden break-words">
+                     <div className="w-full bg-[#111] border border-[#222] text-[#ededed] px-3 py-3 md:px-4 md:py-4 rounded-xl shadow-sm text-[12px] md:text-[13px] prose prose-invert prose-p:leading-relaxed prose-pre:bg-[#0A0A0A] prose-pre:border prose-pre:border-[#222] prose-pre:text-[11px] md:prose-pre:text-[12px] overflow-hidden break-words">
                        <ReactMarkdown>{m.content}</ReactMarkdown>
                      </div>
                    </div>
@@ -322,16 +401,16 @@ export function StudioView() {
                }
             })}
             {isProcessing && (
-              <div className="flex items-center gap-2 text-text-dim text-xs font-mono animate-pulse ml-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-accent"></div> 
-                Processing objective execution...
+              <div className="flex items-center gap-2 text-[#777] text-[11px] md:text-[12px] font-mono animate-pulse ml-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div> 
+                Agent is thinking...
               </div>
             )}
             <div ref={messagesEndRef} />
         </div>
 
         {/* Input Text Box */}
-        <div className="p-3 bg-[#0b0c0e] border-t border-[#1a1c23]">
+        <div className="p-3 md:p-4 bg-[#111] border-t border-[#222] shrink-0">
            <form onSubmit={handleSubmit} className="relative">
               <textarea
                 value={input}
@@ -342,27 +421,27 @@ export function StudioView() {
                      handleSubmit();
                   }
                 }}
-                placeholder="Instruct the Operator (e.g. 'Build a React component in /src')"
-                className="w-full bg-[#111216] border border-[#1a1c23] hover:border-[#272a35] focus:border-accent rounded-lg pl-3 pr-10 py-3 text-[13px] text-white outline-none resize-none min-h-[50px] shadow-inner transition-colors"
-                rows={2}
+                placeholder="Message SeaBot..."
+                className="w-full bg-[#161616] border border-[#333] hover:border-[#444] focus:border-blue-500 rounded-xl pl-3 pr-12 md:pl-4 md:pr-12 py-3 md:py-3.5 text-[12px] md:text-[13px] text-[#ededed] outline-none resize-none min-h-[50px] transition-colors custom-scrollbar"
+                rows={1}
               />
               <button
                 type="submit"
                 id="studio-submit-btn"
                 disabled={!input.trim() || isProcessing}
-                className="absolute right-2 bottom-2 w-7 h-7 flex items-center justify-center bg-accent text-white rounded shrink-0 disabled:opacity-50 hover:bg-accent/90 transition-colors shadow-lg shadow-accent/20"
+                className="absolute right-2 bottom-2 w-8 h-8 flex items-center justify-center bg-blue-500 text-white rounded-lg disabled:opacity-50 hover:bg-blue-600 transition-colors shadow-lg shadow-blue-500/20"
               >
-                <Send className="w-3.5 h-3.5" />
+                <Send className="w-4 h-4 ml-[2px]" />
               </button>
            </form>
-           <div className="flex items-center justify-between mt-2 px-1">
-             <div className="flex items-center gap-1.5 cursor-pointer text-text-dim hover:text-white transition-colors" onClick={() => setIsAutoMode(!isAutoMode)}>
-               <div className={`w-3 h-3 rounded-sm border ${isAutoMode ? 'bg-accent border-accent' : 'border-text-dim'} flex items-center justify-center`}>
-                 {isAutoMode && <Check className="w-2 h-2 text-white" />}
+           <div className="flex items-center justify-between mt-2 md:mt-3 px-1">
+             <div className="flex items-center gap-1.5 cursor-pointer text-[#777] hover:text-[#ededed] transition-colors" onClick={() => setIsAutoMode(!isAutoMode)}>
+               <div className={`w-3 h-3 md:w-3.5 md:h-3.5 rounded-[4px] border ${isAutoMode ? 'bg-blue-500 border-blue-500' : 'border-[#444] bg-[#161616]'} flex items-center justify-center`}>
+                 {isAutoMode && <Check className="w-2 h-2 md:w-2.5 md:h-2.5 text-white" strokeWidth={3} />}
                </div>
-               <span className="text-[10px] font-medium tracking-wide">AUTONOMOUS</span>
+               <span className="text-[10px] md:text-[11px] font-medium tracking-wide">Autonomous</span>
              </div>
-             <span className="text-[10px] text-[#52525b] font-mono block">Shift + Enter to break</span>
+             <span className="text-[9px] md:text-[10px] text-[#555] font-mono hidden md:block">Shift + Return to break</span>
            </div>
         </div>
 

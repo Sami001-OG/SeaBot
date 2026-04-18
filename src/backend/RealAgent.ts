@@ -19,7 +19,7 @@ export async function runRealAgent(
   objective: string, 
   log: LogCallback, 
   depth: number = 0,
-  provider: ModelProvider = 'gemini'
+  provider: ModelProvider = 'gemini:gemini-2.5-flash'
 ): Promise<string> {
   
   if (depth > 2) {

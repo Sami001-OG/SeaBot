@@ -5,10 +5,10 @@ import { SettingsView } from "./views/SettingsView";
 import { MemoryView } from "./views/MemoryView";
 import { WorkflowView } from "./views/WorkflowView";
 import { StudioView } from "./views/StudioView";
+import { TopBar } from "./components/TopBar";
 
 export default function App() {
   const [currentView, setCurrentView] = useState('studio');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
 
   useEffect(() => {
@@ -35,23 +35,19 @@ export default function App() {
         return <SettingsView />;
       default:
         return (
-          <div className="p-4 md:p-6 flex items-center justify-center h-full text-text-dim">
+          <div className="p-4 md:p-6 flex items-center justify-center h-full text-[#777]">
             Not Implemented Yet
           </div>
         );
     }
   };
 
-  const handleViewChange = (view: string) => {
-    setCurrentView(view);
-    setIsMobileMenuOpen(false);
-  };
-
   return (
-    <div className="flex w-screen h-screen bg-[#0b0c0e] text-text-main overflow-hidden font-sans text-[13px] antialiased selection:bg-accent-dim selection:text-accent relative">
-      <Sidebar currentView={currentView} setCurrentView={handleViewChange} isOpen={isMobileMenuOpen} setIsOpen={setIsMobileMenuOpen} />
-      <div className="flex-1 flex flex-col min-w-0">
-        <main className={`flex-1 overflow-hidden relative ${currentView === 'studio' ? 'p-0' : 'p-4 md:p-6 overflow-y-auto'}`}>
+    <div className="flex w-screen h-screen bg-[#0A0A0A] text-[#ededed] overflow-hidden font-sans text-[13px] antialiased">
+      <Sidebar currentView={currentView} setCurrentView={setCurrentView} />
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        {currentView !== 'studio' && <TopBar toggleMobileMenu={() => {}} />}
+        <main className={`flex-1 overflow-y-auto ${currentView === 'studio' ? 'p-0 h-full' : 'p-4 md:p-8 bg-[#0b0c0e]'}`}>
           {renderView()}
         </main>
       </div>
