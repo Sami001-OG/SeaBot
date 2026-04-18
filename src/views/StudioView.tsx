@@ -9,32 +9,123 @@ interface FSItem {
 }
 
 const INITIAL_MODEL_DIRECTORY = [
-  { provider: "Google Gemini", models: [
+  { provider: "Google", models: [
+    { id: "gemini:gemini-3.1-pro", name: "Gemini 3.1 Pro", badge: "Smart" },
+    { id: "gemini:gemini-3.1-flash", name: "Gemini 3.1 Flash", badge: "Fast" },
+    { id: "gemini:gemini-3-pro", name: "Gemini 3 Pro" },
+    { id: "gemini:gemini-2.5-pro", name: "Gemini 2.5 Pro" },
     { id: "gemini:gemini-2.5-flash", name: "Gemini 2.5 Flash", badge: "Fast" },
-    { id: "gemini:gemini-2.5-pro", name: "Gemini 2.5 Pro", badge: "Smart" },
+    { id: "gemini:gemini-2.5-flash-lite", name: "Gemini 2.5 Flash-Lite" },
+    { id: "gemini:gemini-2.5-flash-live", name: "Gemini 2.5 Flash Live" },
+    { id: "gemini:gemini-2.5-flash-tts", name: "Gemini 2.5 Flash TTS" },
+    { id: "gemini:gemini-2.5-pro-tts", name: "Gemini 2.5 Pro TTS" },
+    { id: "gemini:gemini-2", name: "Gemini 2" },
+    { id: "gemini:gemini-1.5", name: "Gemini 1.5" },
+    { id: "gemini:gemma-3n", name: "Gemma 3n" },
+    { id: "gemini:gemma", name: "Gemma" },
+    { id: "gemini:veo-3.1", name: "Veo 3.1" },
+    { id: "gemini:imagen-4", name: "Imagen 4" },
+    { id: "gemini:lyria", name: "Lyria" },
+    { id: "gemini:palm-2", name: "PaLM 2" },
+    { id: "gemini:nano-banana-2", name: "Nano Banana 2" },
+    { id: "gemini:nano-banana-pro", name: "Nano Banana Pro" }
   ]},
   { provider: "OpenAI", models: [
-    { id: "openai:gpt-4o", name: "GPT-4o", badge: "Smart" },
-    { id: "openai:gpt-4o-mini", name: "GPT-4o Mini", badge: "Fast" },
-    { id: "openai:o1-mini", name: "o1 Mini", badge: "Reason" }
+    { id: "openai:gpt-5.4-pro", name: "GPT-5.4 Pro", badge: "Smart" },
+    { id: "openai:gpt-5.4", name: "GPT-5.4" },
+    { id: "openai:gpt-5.4-mini", name: "GPT-5.4 Mini", badge: "Fast" },
+    { id: "openai:gpt-5.4-nano", name: "GPT-5.4 Nano" },
+    { id: "openai:gpt-5.2", name: "GPT-5.2" },
+    { id: "openai:gpt-5.1", name: "GPT-5.1" },
+    { id: "openai:gpt-5", name: "GPT-5" },
+    { id: "openai:gpt-5-mini", name: "GPT-5-mini" },
+    { id: "openai:gpt-5-nano", name: "GPT-5-nano" },
+    { id: "openai:gpt-4.1", name: "GPT-4.1" },
+    { id: "openai:gpt-4.1-mini", name: "GPT-4.1 Mini" },
+    { id: "openai:gpt-4.1-nano", name: "GPT-4.1 Nano" },
+    { id: "openai:gpt-4o", name: "GPT-4o" },
+    { id: "openai:o1", name: "o1", badge: "Reason" },
+    { id: "openai:o3", name: "o3", badge: "Reason" },
+    { id: "openai:gpt-oss-20b", name: "GPT-oss-20B" },
+    { id: "openai:gpt-oss-120b", name: "GPT-oss-120B" },
+    { id: "openai:codex-max", name: "Codex Max" },
+    { id: "openai:dall-e", name: "DALL-E" },
+    { id: "openai:sora", name: "Sora" },
+    { id: "openai:whisper", name: "Whisper" }
   ]},
   { provider: "Anthropic", models: [
-    { id: "anthropic:claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", badge: "Smart" },
-    { id: "anthropic:claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku", badge: "Fast" },
-    { id: "anthropic:claude-3-opus-20240229", name: "Claude 3.0 Opus" }
+    { id: "anthropic:claude-4-6-opus", name: "Claude Opus 4.6", badge: "Smart" },
+    { id: "anthropic:claude-4-5-opus", name: "Claude Opus 4.5" },
+    { id: "anthropic:claude-4-1-opus", name: "Claude Opus 4.1" },
+    { id: "anthropic:claude-4-opus", name: "Claude Opus 4" },
+    { id: "anthropic:claude-3-5-opus", name: "Claude Opus 3.5" },
+    { id: "anthropic:claude-4-6-sonnet", name: "Claude Sonnet 4.6" },
+    { id: "anthropic:claude-4-5-sonnet", name: "Claude Sonnet 4.5" },
+    { id: "anthropic:claude-4-sonnet", name: "Claude Sonnet 4" },
+    { id: "anthropic:claude-3-5-sonnet", name: "Claude Sonnet 3.5", badge: "Smart" },
+    { id: "anthropic:claude-4-5-haiku", name: "Claude Haiku 4.5", badge: "Fast" },
+    { id: "anthropic:claude-4-haiku", name: "Claude Haiku 4" },
+    { id: "anthropic:claude-3-5-haiku", name: "Claude Haiku 3.5" }
   ]},
-  { provider: "Groq (Local/Fast)", models: [
-    { id: "groq:llama3-70b-8192", name: "Llama 3 70B", badge: "Fast" },
-    { id: "groq:mixtral-8x7b-32768", name: "Mixtral 8x7B" }
+  { provider: "Meta", models: [
+    { id: "groq:llama-4-maverick", name: "Llama 4 Maverick (17B)", badge: "Fast" },
+    { id: "groq:llama-4-scout", name: "Llama 4 Scout (17B)" },
+    { id: "groq:llama-3.3-70b", name: "Llama 3.3 (70B)" },
+    { id: "groq:llama-3.2-90b-vision", name: "Llama 3.2 90B Vision" },
+    { id: "groq:llama-3.2-11b-vision", name: "Llama 3.2 11B Vision" },
+    { id: "groq:llama-3.2-3b", name: "Llama 3.2 1B/3B" },
+    { id: "groq:llama-3.1", name: "Llama 3.1" }
   ]},
-  { provider: "Mistral", models: [
-    { id: "mistral:mistral-large-latest", name: "Mistral Large" },
+  { provider: "xAI", models: [
+    { id: "openrouter:xai/grok-4.20-reasoning", name: "Grok 4.20-reasoning", badge: "Reason" },
+    { id: "openrouter:xai/grok-4.20-non-reasoning", name: "Grok 4.20-non-reasoning" },
+    { id: "openrouter:xai/grok-4.1-fast-reasoning", name: "Grok 4.1-fast-reasoning" },
+    { id: "openrouter:xai/grok-4.1-fast", name: "Grok 4.1-fast", badge: "Fast" },
+    { id: "openrouter:xai/grok-4", name: "Grok 4" },
+    { id: "openrouter:xai/grok-3", name: "Grok 3" },
+    { id: "openrouter:xai/grok-3-mini", name: "Grok 3-mini" },
+    { id: "openrouter:xai/grok-2-vision", name: "Grok 2 Vision" },
+    { id: "openrouter:xai/grok-2", name: "Grok 2" }
   ]},
-  { provider: "OpenRouter", models: [
-    { id: "openrouter:anthropic/claude-3.5-sonnet", name: "OR: Claude 3.5 Sonnet" },
-    { id: "openrouter:google/gemini-2.5-pro", name: "OR: Gemini 2.5 Pro" },
-    { id: "openrouter:liquid/lfm-40b", name: "OR: LFM 40B" }
-  ]}
+  { provider: "Mistral AI", models: [
+    { id: "mistral:mistral-large-3", name: "Mistral Large 3" },
+    { id: "mistral:mistral-medium-3.1", name: "Mistral Medium 3.1" },
+    { id: "mistral:mistral-small-3.1", name: "Mistral Small 3.1" },
+    { id: "mistral:ministral-3", name: "Ministral 3 (3B/8B/14B)" },
+    { id: "mistral:mistral-7b", name: "Mistral 7B" },
+    { id: "mistral:codestral", name: "Codestral" },
+    { id: "mistral:pixtral", name: "Pixtral" }
+  ]},
+  { provider: "DeepSeek", models: [
+    { id: "openrouter:deepseek/deepseek-v3.2", name: "DeepSeek-V3.2", badge: "Smart" },
+    { id: "openrouter:deepseek/deepseek-v3.1", name: "DeepSeek-V3.1" },
+    { id: "openrouter:deepseek/deepseek-v3", name: "DeepSeek-V3" },
+    { id: "openrouter:deepseek/deepseek-r1-0528", name: "DeepSeek-R1-0528" },
+    { id: "openrouter:deepseek/deepseek-r1", name: "DeepSeek-R1", badge: "Reason" },
+    { id: "openrouter:deepseek/deepseek-r1-zero", name: "DeepSeek-R1-Zero" },
+    { id: "openrouter:deepseek/deepseek-v2", name: "DeepSeek-V2" },
+    { id: "openrouter:deepseek/deepseek-llm-67b", name: "DeepSeek-LLM (7B/67B)" },
+    { id: "openrouter:deepseek/deepseek-coder", name: "DeepSeek Coder" }
+  ]},
+  { provider: "Alibaba / Qwen", models: [
+    { id: "openrouter:qwen/qwen3-235b-a22b", name: "Qwen3-235B-A22B" },
+    { id: "openrouter:qwen/qwen3-32b", name: "Qwen3-32B" },
+    { id: "openrouter:qwen/qwen3.5-flash", name: "Qwen3.5-Flash" },
+    { id: "openrouter:qwen/qwen3.5-122b-a10b", name: "Qwen3.5-122B-A10B" },
+    { id: "openrouter:qwen/qwq", name: "QVQ" },
+    { id: "openrouter:qwen/qwen-omni", name: "Qwen-Omni" }
+  ]},
+  { provider: "Microsoft / Amazon / NVIDIA / Others", models: [
+    { id: "openrouter:microsoft/phi-4-reasoning", name: "Phi-4-reasoning" },
+    { id: "openrouter:amazon/nova-premier", name: "Amazon Nova Premier" },
+    { id: "openrouter:nvidia/cosmos-3", name: "NVIDIA Cosmos 3" },
+    { id: "openrouter:bytedance/seed-2.0-pro", name: "Seed-2.0-Pro" },
+    { id: "openrouter:zhipu/glm-5v-turbo", name: "GLM-5V-Turbo" },
+    { id: "openrouter:moonshot/kimi-k2.5", name: "Kimi K2.5" },
+    { id: "openrouter:minimax/minimax-text-01", name: "MiniMax-Text-01" },
+    { id: "openrouter:cohere/command-r-plus", name: "Command R+" }
+  ]},
+  { provider: "OpenRouter", models: []}
 ];
 
 export function StudioView() {
