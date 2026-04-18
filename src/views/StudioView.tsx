@@ -285,6 +285,8 @@ export function StudioView() {
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
   
   const sessionIdRef = useRef<string>(`sess_${Date.now()}`);
+  const parentIdRef = useRef<string | undefined>(undefined);
+  const nodeNameRef = useRef<string | undefined>(undefined);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const terminalEndRef = useRef<HTMLDivElement>(null);
@@ -364,6 +366,8 @@ export function StudioView() {
            if (data && data.content) {
               const parsed = JSON.parse(data.content);
               if (parsed.messages) setMessages(parsed.messages);
+              if (parsed.parentId) parentIdRef.current = parsed.parentId;
+              if (parsed.nodeName) nodeNameRef.current = parsed.nodeName;
            }
         }).catch(() => {});
     }
@@ -374,12 +378,19 @@ export function StudioView() {
   // Sync to FileSystem Automatically when messages update
   useEffect(() => {
     if (messages.length > 0) {
+      localStorage.setItem('seabot-current-session-id', sessionIdRef.current);
       fetch('/api/fs/write', {
          method: 'POST',
          headers: {'Content-Type': 'application/json'},
          body: JSON.stringify({
             targetPath: `system_memory/sessions/${sessionIdRef.current}.json`,
-            content: JSON.stringify({ id: sessionIdRef.current, timestamp: parseInt(sessionIdRef.current.replace('sess_', '')), messages }, null, 2)
+            content: JSON.stringify({ 
+               id: sessionIdRef.current, 
+               timestamp: parseInt(sessionIdRef.current.replace('sess_', '')), 
+               messages,
+               parentId: parentIdRef.current,
+               nodeName: nodeNameRef.current
+            }, null, 2)
          })
       }).catch(() => {});
     }

@@ -5,6 +5,7 @@ import { SettingsView } from "./views/SettingsView";
 import { StudioView } from "./views/StudioView";
 import { ChannelsView } from "./views/ChannelsView";
 import { OverviewView } from "./views/OverviewView";
+import { NodesView } from "./views/NodesView";
 import { SessionsView } from "./views/SessionsView";
 import { TopBar } from "./components/TopBar";
 
@@ -104,7 +105,7 @@ export default function App() {
       case 'channels':
         return <ChannelsView />;
       case 'instances':
-        return <PlaceholderView title="Nodes & Instances" description="View child agents and swarms actively spawned across your infrastructure." />;
+        return <NodesView />;
       case 'sessions':
         return <SessionsView />;
       case 'cron':
