@@ -7,6 +7,8 @@ import { ChannelsView } from "./views/ChannelsView";
 import { OverviewView } from "./views/OverviewView";
 import { NodesView } from "./views/NodesView";
 import { SessionsView } from "./views/SessionsView";
+import { CronView } from "./views/CronView";
+import { SkillsView } from "./views/SkillsView";
 import { TopBar } from "./components/TopBar";
 
 // Generic View Shell for Dashboard Sections
@@ -109,9 +111,9 @@ export default function App() {
       case 'sessions':
         return <SessionsView />;
       case 'cron':
-        return <PlaceholderView title="Cron Jobs" description="Scheduled autonomous routines and repeating node tasks." />;
+        return <CronView />;
       case 'skills':
-        return <PlaceholderView title="Skills Library" description="Function definitions and plugin modules accessible by the reasoning engine." />;
+        return <SkillsView />;
       case 'nodes':
         return <PlaceholderView title="Hardware Nodes" description="API latency graphs and edge-compute hardware node mapping." />;
       case 'debug':
