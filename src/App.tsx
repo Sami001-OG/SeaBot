@@ -4,6 +4,7 @@ import { SetupTerminalView } from "./views/SetupTerminalView";
 import { SettingsView } from "./views/SettingsView";
 import { StudioView } from "./views/StudioView";
 import { ChannelsView } from "./views/ChannelsView";
+import { OverviewView } from "./views/OverviewView";
 import { TopBar } from "./components/TopBar";
 
 // Generic View Shell for Dashboard Sections
@@ -98,7 +99,7 @@ export default function App() {
       case 'config':
         return <SettingsView />;
       case 'overview':
-        return <PlaceholderView title="System Overview" description="High-level telemetry, uptime, and aggregated cluster metrics." />;
+        return <OverviewView />;
       case 'channels':
         return <ChannelsView />;
       case 'instances':

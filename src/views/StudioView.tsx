@@ -634,7 +634,13 @@ export function StudioView() {
                            {group.models.map(mod => (
                               <button 
                                 key={mod.id} 
-                                onClick={() => { setProvider(mod.id); setShowProviderMenu(false); setModelSearch(""); }} 
+                                onClick={() => { 
+                                  setProvider(mod.id); 
+                                  setShowProviderMenu(false); 
+                                  setModelSearch(""); 
+                                  localStorage.setItem("seabot-active-model", mod.id);
+                                  localStorage.setItem("seabot-active-model-name", mod.name);
+                                }} 
                                 className={`w-full text-left px-4 py-1.5 text-[12px] flex items-center justify-between hover:bg-blue-500/10 transition-colors ${provider === mod.id ? 'text-blue-400 bg-blue-500/5' : 'text-[#ccc]'}`}
                               >
                                  <span className="truncate pr-2">{mod.name}</span>
