@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Folder, FileText, Search, Code, Save, RefreshCw, Terminal, Send, Play, Bot, ChevronDown, Check, Activity, X, Server, Network, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { Folder, FileText, Search, Code, Save, RefreshCw, Terminal, Send, Play, Bot, ChevronDown, Check, Activity, X, Server, Network, ShieldAlert, CheckCircle2, Database } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 
 interface FSItem {
@@ -131,18 +131,47 @@ const INITIAL_MODEL_DIRECTORY = [
 // --- Interactive Render Components ---
 function InteractivePreview({ inline, className, children }: any) {
   const [viewMode, setViewMode] = useState<'preview' | 'code'>('preview');
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false);
+  
   const match = /language-(\w+)/.exec(className || '');
-  const isHtml = match && match[1] === 'html';
+  const language = match ? match[1] : 'txt';
+  const isHtml = match && (language === 'html' || language === 'html5');
   const codeContent = String(children).replace(/\n$/, '');
+
+  useEffect(() => {
+    // If it's a standard code block, autonomously store it in the memory vault
+    if (!inline && !isHtml && !hasSaved && codeContent.trim().length > 0) {
+       const snippetName = `snippet_${Math.random().toString(36).substring(7)}.${language}`;
+       fetch('/api/fs/write', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ targetPath: `system_memory/${snippetName}`, content: codeContent })
+       }).catch(() => {});
+       setHasSaved(true);
+    }
+  }, [inline, isHtml, hasSaved, codeContent, language]);
 
   if (!inline && isHtml) {
     // Inject Tailwind CDN seamlessly so the agent has styles out of the box
+    // Also inject generic chart.js / d3 libs just in case it wants to make graphs!
     const srcDoc = `
       <!DOCTYPE html>
-      <html>
+      <html lang="en">
         <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <script src="https://cdn.tailwindcss.com"></script>
-          <style>body { margin: 0; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: transparent; }</style>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+          <style>
+            body { margin: 0; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: transparent; }
+            /* Custom scrollbar for the iframe interior */
+            ::-webkit-scrollbar { width: 8px; height: 8px; }
+            ::-webkit-scrollbar-track { background: transparent; }
+            ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+            ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+          </style>
         </head>
         <body>
           ${codeContent}
@@ -151,56 +180,83 @@ function InteractivePreview({ inline, className, children }: any) {
     `;
 
     return (
-      <div className="w-full my-4 border border-[#333] rounded-xl overflow-hidden bg-[#0A0A0A] flex flex-col">
+      <div className="w-full my-5 border border-[#333] shadow-2xl rounded-xl overflow-hidden bg-[#0A0A0A] flex flex-col font-sans">
         {/* Header Tabs */}
-        <div className="flex items-center justify-between border-b border-[#222] bg-[#111] px-2 h-10 shrink-0">
-          <div className="flex gap-1 h-full">
-            <button 
-              onClick={() => setViewMode('preview')}
-              className={`px-4 text-[11px] font-bold tracking-wide uppercase transition-colors h-full flex items-center ${viewMode === 'preview' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-[#777] border-b-2 border-transparent hover:text-[#ccc]'}`}
-            >
-              Preview
-            </button>
-            <button 
-              onClick={() => setViewMode('code')}
-              className={`px-4 text-[11px] font-bold tracking-wide uppercase transition-colors h-full flex items-center ${viewMode === 'code' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-[#777] border-b-2 border-transparent hover:text-[#ccc]'}`}
-            >
-              Code
-            </button>
+        <div className="flex items-center justify-between border-b border-[#222] bg-gradient-to-r from-[#111] to-[#151515] px-3 h-10 shrink-0">
+          <div className="flex gap-4 h-full items-center">
+            <span className="flex items-center gap-1.5 text-blue-400 text-[10px] uppercase font-bold tracking-widest pl-1 pr-3 border-r border-[#333]">
+               <Activity className="w-3.5 h-3.5" /> Artifact
+            </span>
+            <div className="flex gap-1 h-full">
+               <button 
+                 onClick={() => setViewMode('preview')}
+                 className={`px-3 text-[11px] font-bold tracking-wide transition-colors h-full flex items-center ${viewMode === 'preview' ? 'text-white border-b-2 border-blue-500' : 'text-[#777] border-b-2 border-transparent hover:text-[#ccc]'}`}
+               >
+                 Live Preview
+               </button>
+               <button 
+                 onClick={() => setViewMode('code')}
+                 className={`px-3 text-[11px] font-bold tracking-wide transition-colors h-full flex items-center ${viewMode === 'code' ? 'text-white border-b-2 border-blue-500' : 'text-[#777] border-b-2 border-transparent hover:text-[#ccc]'}`}
+               >
+                 Source Code
+               </button>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 px-3">
-             <div className="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/50"></div>
-             <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
-             <div className="w-2.5 h-2.5 rounded-full bg-green-500/20 border border-green-500/50"></div>
+          <div className="flex items-center gap-1.5">
+             <div className="w-2.5 h-2.5 rounded-full bg-[#fca5a5]/10 border border-[#fca5a5]/30"></div>
+             <div className="w-2.5 h-2.5 rounded-full bg-[#fde047]/10 border border-[#fde047]/30"></div>
+             <div className="w-2.5 h-2.5 rounded-full bg-[#86efac]/10 border border-[#86efac]/30"></div>
           </div>
         </div>
 
         {/* Content Body */}
         {viewMode === 'preview' ? (
-          <div className="w-full h-[400px] bg-white relative">
+          <div className="w-full bg-[#ffffff] relative flex flex-col resize-y overflow-auto" style={{ minHeight: '400px', height: '450px' }}>
             <iframe 
                srcDoc={srcDoc} 
-               className="w-full h-full border-none outline-none" 
+               className="w-full h-full border-none outline-none flex-1" 
                title="Interactive UI Preview"
-               sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
+               sandbox="allow-scripts allow-popups allow-forms allow-same-origin allow-modals"
             />
           </div>
         ) : (
-          <pre className="!m-0 !p-4 !bg-transparent text-[11.5px] leading-relaxed overflow-x-auto custom-scrollbar">
-            <code className={className}>{children}</code>
-          </pre>
+          <div className="w-full relative flex flex-col resize-y overflow-auto" style={{ minHeight: '400px', height: '450px' }}>
+             <pre className="!m-0 !p-4 !bg-[#050505] text-[11.5px] leading-relaxed overflow-x-auto flex-1 custom-scrollbar">
+               <code className={className}>{children}</code>
+             </pre>
+          </div>
         )}
       </div>
     );
   }
 
   // Fallback to normal code block behavior for non-HTML / inline
-  return !inline ? (
-    <pre className="border border-[#222] !bg-[#0A0A0A] rounded-lg !my-4 !p-3 overflow-x-auto text-[11.5px] leading-relaxed custom-scrollbar">
-      <code className={className}>{children}</code>
-    </pre>
-  ) : (
-    <code className="px-1.5 py-0.5 rounded-md bg-[#222] border border-[#333] text-[#cfcfcf] text-[11px]">{children}</code>
+  if (!inline) {
+    return (
+      <div className="w-full my-4 border border-[#222] shadow-sm rounded-xl overflow-hidden bg-[#0A0A0A] flex flex-col font-sans">
+        <div 
+           className="flex items-center justify-between border-b border-[#222] bg-[#111] px-3 h-10 shrink-0 cursor-pointer hover:bg-[#161616] transition-colors"
+           onClick={() => setIsExpanded(!isExpanded)}
+        >
+           <div className="flex items-center gap-2">
+              <Database className="w-3.5 h-3.5 text-purple-400" />
+              <span className="text-[11px] font-medium text-[#ccc]">Code Block (Auto-Stored in System Memory)</span>
+           </div>
+           <button className="text-[10px] text-blue-400 hover:text-blue-300 uppercase font-bold tracking-wider">
+              {isExpanded ? 'Hide' : 'Expand'}
+           </button>
+        </div>
+        {isExpanded && (
+           <pre className="!m-0 !p-3 !bg-[#050505] text-[11px] leading-relaxed overflow-x-auto custom-scrollbar text-[#a1a1aa]">
+             <code className={className}>{children}</code>
+           </pre>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <code className="px-1.5 py-0.5 rounded-md bg-[#222] border border-[#333] text-[#cfcfcf] text-[11px] font-medium">{children}</code>
   );
 }
 
