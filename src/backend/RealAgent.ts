@@ -15,6 +15,8 @@ interface ToolDesc {
 
 const vdb = new VectorDB(); // Initialize System Memory
 
+export type AgentNode = 'PLANNER' | 'RESEARCHER' | 'EXECUTION' | 'REVIEWER' | 'FINAL_OUTPUT';
+
 export async function runRealAgent(
   objective: string, 
   log: LogCallback, 
@@ -26,6 +28,7 @@ export async function runRealAgent(
     return "Error: Maximum sub-agent depth exceeded (Preventing infinite swarm).";
   }
 
+  // --- Sandboxed Execution Engine ---
   const tools: Record<string, ToolDesc> = {
     system_exec: {
       name: "system_exec",
@@ -35,7 +38,8 @@ export async function runRealAgent(
         return new Promise((resolve) => {
           exec(args.command, { cwd: process.cwd() }, (error, stdout, stderr) => {
             if (error) {
-               resolve(`Error: ${error.message}\nStderr: ${stderr}`);
+               // Self-Healing mechanism natively traps the exit code
+               resolve(`[EXIT CODE ${error.code || 1}] Error: ${error.message}\nStderr: ${stderr}`);
                return;
             }
             resolve(stdout || stderr || "Command executed successfully with no output.");
@@ -92,7 +96,6 @@ export async function runRealAgent(
       execute: async (args: { pattern: string; directory: string }) => {
         return new Promise((resolve) => {
           const target = args.directory || '.';
-          // -r (recursive), -n (line number), -I (ignore binaries)
           const cmd = `grep -rnI "${args.pattern}" ${target} | head -n 50`;
           exec(cmd, { cwd: process.cwd() }, (error, stdout, stderr) => {
              if (error && error.code === 1) resolve("No matches found.");
@@ -110,12 +113,11 @@ export async function runRealAgent(
         try {
           const r = await fetch(args.url);
           const text = await r.text();
-          // Simplified HTML strip for raw text embedding
           return text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
                      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
                      .replace(/<[^>]+>/g, ' ')
                      .replace(/\s+/g, ' ')
-                     .substring(0, 4000); // Truncate to save context window
+                     .substring(0, 4000); 
         } catch (e: any) {
           return `Error fetching URL: ${e.message}`;
         }
@@ -146,12 +148,9 @@ export async function runRealAgent(
       usage: "{\"role\": \"security_reviewer\", \"objective\": \"Find XSS vulnerabilities in index.js\"}",
       execute: async (args: { role: string; objective: string }) => {
         log('system', `Spawning Agent => [${args.role.toUpperCase()}]`);
-        
-        // Wrap logs to show the sub-agent prefix
         const childLog: LogCallback = (type, text) => {
            log(type, `[AGENT:${args.role}] ${text}`);
         };
-        
         const finalAnswer = await runRealAgent(args.objective, childLog, depth + 1, provider);
         return `Sub-agent completed objective. Final Output:\n${finalAnswer}`;
       }
@@ -162,100 +161,249 @@ export async function runRealAgent(
     `- ${t.name}: ${t.description}\n  Format: ${t.usage}`
   ).join('\n\n');
 
-  const systemPrompt = `You are the SeaBot / OpenClaw Autonomous Engine.
-You operate as a Senior Developer, Systems Analyst, and IT Operator. 
-The user is your CEO. They will give you high-level goals (e.g., "Build a crypto signal dashboard"). Your job is to autonomously plan the architecture, execute terminal commands, manage the codebase, and finalize the application.
+  // Graph State Machine
+  let currentNode: AgentNode = 'PLANNER';
+  let internalContext = `User Objective: ${objective}\n\n`;
+  let finalResult = "";
 
-Task Objective: ${objective}
+  const MAX_GLOBAL_STEPS = 30;
+  let globalSteps = 0;
 
-Available Tools (Your OS Capabilities):
+  log('system', `[OS BOOT] Initializing Graph Cognitive Architecture. Target Node: ${currentNode}`);
+
+  while (globalSteps < MAX_GLOBAL_STEPS && currentNode !== 'FINAL_OUTPUT') {
+    globalSteps++;
+
+    try {
+       // === NODE: PLANNER ===
+       if (currentNode === 'PLANNER') {
+          log('reflection', `[NODE: PLANNER] Structuring execution graph...`);
+          
+          const plannerPrompt = `You are the PLANNER NODE of the OpenClaw AI OS.
+Your job is to read the objective and output a JSON array of actionable steps required to achieve it.
+You MUST format your ONLY output as a strict JSON element like this:
+{
+  "rationale": "Why we are doing this...",
+  "steps": ["Step 1...", "Step 2..."],
+  "next_node": "RESEARCHER" or "EXECUTION" (If you know what to do already, go to EXECUTION, otherwise RESEARCHER to check files/memory first)
+}
+
+Context so far:
+${internalContext}`;
+
+          const res = await ModelRouter.generate(provider, plannerPrompt);
+          try {
+             // Extract JSON
+             const match = res.match(/\{[\s\S]*\}/);
+             if (!match) throw new Error("No JSON found");
+             const plan = JSON.parse(match[0]);
+             
+             log('thought', `Plan formulated: ${plan.rationale}\nSteps:\n- ${plan.steps.join('\n- ')}`);
+             internalContext += `\n[PLANNER NODE OUTPUT]\nPlan: ${JSON.stringify(plan.steps)}\n\n`;
+             currentNode = plan.next_node === 'RESEARCHER' ? 'RESEARCHER' : 'EXECUTION';
+          } catch(e) {
+             log('error', `Planner Node failed to structure JSON. Dropping fallback to Execution.`);
+             currentNode = 'EXECUTION'; // Fallback
+          }
+       }
+
+       // === NODE: RESEARCHER ===
+       else if (currentNode === 'RESEARCHER') {
+          log('reflection', `[NODE: RESEARCHER] Gathering contextual context & scanning databases...`);
+          
+          let researchLoops = 0;
+          let researchDone = false;
+          let researchMemory = "";
+
+          while (researchLoops < 5 && !researchDone) {
+            researchLoops++;
+            const researchPrompt = `You are the RESEARCHER NODE.
+Tools available: fs_list, fs_read, search_codebase, memory_search, web_fetch.
+Your goal is to gather ONLY the information needed to execute the plan.
 ${toolDescriptions}
 
-Rules:
-1. You act autonomously in a ReAct loop (Thought -> Action -> Observation).
-2. To understand a project, use 'fs_list' followed by 'fs_read'. 
-3. You can build entire applications by chaining 'fs_write' and 'system_exec' (to install deps).
-4. If a task is massively complex, use 'delegate_task' to spawn parallel sub-agents (e.g., [RESEARCHER], [CODER]).
-5. Use 'memory_store' and 'memory_search' to leverage long-term project context.
-6. When writing code, write production-ready implementations, not placeholders.
+Current Context:
+${internalContext}
+Recent Research:
+${researchMemory}
 
-Use exactly this format:
-Thought: <your step-by-step reasoning>
+Format your response EXACTLY like this:
+Thought: I need to check X...
+Action: fs_read
+Action Input: {"path":"..."}
+OR
+Thought: I have gathered enough context to proceed.
+Next Node: EXECUTION`;
+
+            const res = await ModelRouter.generate(provider, researchPrompt);
+            const nextNodeMatch = res.match(/Next Node:\s*(.*)/i);
+            
+            if (nextNodeMatch && nextNodeMatch[1].trim().toUpperCase() === 'EXECUTION') {
+               internalContext += `\n[RESEARCHER CONTEXT GATHERED]\n${researchMemory}\n`;
+               currentNode = 'EXECUTION';
+               researchDone = true;
+               break;
+            }
+
+            const actionMatch = res.match(/Action:\s*(.*?)\nAction Input:\s*({.*})/s);
+            if (actionMatch) {
+               const toolName = actionMatch[1].trim();
+               const toolInputRaw = actionMatch[2].trim();
+               log('action', `[RESEARCH] ${toolName} (${toolInputRaw})`);
+               try {
+                 const parsed = JSON.parse(toolInputRaw);
+                 if (tools[toolName]) {
+                    const obs = await tools[toolName].execute(parsed);
+                    researchMemory += `\nExec ${toolName} result:\n${obs}\n`;
+                    log('observation', `[RESEARCH RESULT] ${obs.substring(0, 200)}...`);
+                 } else {
+                    researchMemory += `\nError: Tool ${toolName} does not exist in Researcher Node.\n`;
+                 }
+               } catch (e) {}
+            } else {
+               currentNode = 'EXECUTION';
+               researchDone = true;
+            }
+          }
+          if (!researchDone) currentNode = 'EXECUTION';
+       }
+
+       // === NODE: EXECUTION (The ReAct Loop) ===
+       else if (currentNode === 'EXECUTION') {
+          log('reflection', `[NODE: EXECUTION] Applying actions to environment...`);
+          
+          let execLoops = 0;
+          let execDone = false;
+          
+          while (execLoops < 10 && !execDone) {
+            execLoops++;
+            const execPrompt = `You are the EXECUTION NODE. 
+Your job is to perform actions to complete the user objective based on the Plan.
+
+Current Context & Plan:
+${internalContext}
+
+Available Tools:
+${toolDescriptions}
+
+To use a tool, return EXACTLY:
+Thought: <reasoning>
 Action: <tool_name>
-Action Input: <json mapping EXACTLY to the tool's usage schema>
+Action Input: <json>
 
-Wait for the 'Observation: ...' from the system before your next Thought. 
+If you have executed everything and built/modified the requirements:
+Thought: Execution is complete. I need to verify my work.
+Next Node: REVIEWER`;
 
-Once you have completed the objective or found the final answer, output:
-Thought: I have finished the task.
-Final Answer: <your final synthesized conclusion>
-`;
+            const res = await ModelRouter.generate(provider, execPrompt);
+            
+            const nextNodeMatch = res.match(/Next Node:\s*(.*)/i);
+            if (nextNodeMatch && nextNodeMatch[1].trim().toUpperCase() === 'REVIEWER') {
+               currentNode = 'REVIEWER';
+               execDone = true;
+               break;
+            }
 
-  let history = systemPrompt + "\n\n---\nBEGIN\n";
-  let steps = 0;
-  const MAX_STEPS = 25; // Massive buffer for full app generation pipelines
+            const actionMatch = res.match(/Action:\s*(.*?)\nAction Input:\s*({.*})/s);
+            if (actionMatch) {
+               const toolName = actionMatch[1].trim();
+               const toolInputRaw = actionMatch[2].trim();
+               log('action', `[EXECUTE] ${toolName} (${toolInputRaw})`);
+               
+               let obs = "";
+               try {
+                 const parsed = JSON.parse(toolInputRaw);
+                 if (tools[toolName]) {
+                    obs = await tools[toolName].execute(parsed);
+                    log('observation', `[OS RESPONSE] ${obs.substring(0, 300)}...`);
+                 } else {
+                    obs = `Error: Tool ${toolName} does not exist.`;
+                    log('error', `Tool not found: ${toolName}`);
+                 }
+               } catch (e: any) {
+                 obs = `Failed to parse or execute: ${e.message}`;
+                 log('error', obs);
+               }
+               internalContext += `\n[EXEC NODE: Action ${toolName}]\n${obs}\n`;
+            } else {
+               // Safe fallback if the model hallucinates formatting:
+               const thoughtMatch = res.match(/Thought:\s*(.*?)(?=\n|$)/s);
+               if (thoughtMatch) log('thought', thoughtMatch[1]);
+               
+               internalContext += `\n[EXEC NODE: LLM output without action]\n${res}\n`;
+               
+               // Force move to Reviewer if we hit an ambiguous state
+               if (res.toLowerCase().includes("done") || res.toLowerCase().includes("complete")) {
+                 currentNode = 'REVIEWER';
+                 execDone = true;
+               }
+            }
+          }
+          if (!execDone) currentNode = 'REVIEWER'; // Timeout safe-guard
+       }
 
-  while (steps < MAX_STEPS) {
-    steps++;
-    try {
-      // Replaced fixed Gemini API call with Dynamic OpenClaw Model Routing Architecture
-      const text = await ModelRouter.generate(provider, history);
-      
-      // Parse ReAct format
-      const thoughtMatch = text.match(/Thought:\s*(.*?)(?=\nAction:|\nFinal Answer:|$)/s);
-      if (thoughtMatch && thoughtMatch[1]) {
-         log('thought', `${thoughtMatch[1].trim()}`);
-      }
+       // === NODE: REVIEWER (Self-Healing & Auto-Correction) ===
+       else if (currentNode === 'REVIEWER') {
+          log('reflection', `[NODE: REVIEWER] Analyzing execution output for flaws or anomalies...`);
+          
+          const reviewPrompt = `You are the REVIEWER NODE.
+Review the entire Execution Context log. Did the execution fully fulfill the User Objective? Were there any script errors (e.g., EXIT CODE 1)?
+If there are errors or missing logic, you MUST send it back to EXECUTION node.
+If everything is perfect, proceed to FINAL_OUTPUT.
 
-      const finalAnswerMatch = text.match(/Final Answer:\s*(.*)/s);
-      if (finalAnswerMatch) {
-         log('reflection', `Objective completed.`);
-         return finalAnswerMatch[1].trim();
-      }
+Context Log:
+${internalContext}
 
-      const actionMatch = text.match(/Action:\s*(.*?)\nAction Input:\s*({.*})/s);
-      if (actionMatch) {
-         const toolName = actionMatch[1].trim();
-         const toolInputRaw = actionMatch[2].trim();
-         
-         log('action', `Tool Call: ${toolName} (${toolInputRaw})`);
-         
-         try {
-           const parsedInput = JSON.parse(toolInputRaw);
-           if (!tools[toolName]) {
-             const obs = `Tool not found: ${toolName}`;
-             log('error', obs);
-             history += text + `\nObservation: ${obs}\n`;
-             continue;
-           }
+Respond EXACTLY in this JSON format:
+{
+  "critique": "Your critical analysis of the work...",
+  "pass": true or false,
+  "next_node": "FINAL_OUTPUT" or "EXECUTION",
+  "feedback_to_execution": "If pass is false, what exactly needs to be fixed?"
+}`;
 
-           // Explicitly execute standard tools or OS-level plugins dynamically
-           const observation = await tools[toolName].execute(parsedInput);
-           log('observation', `${observation.substring(0, 1000)}${observation.length > 1000 ? '... [TRUNCATED]' : ''}`);
-           
-           history += text + `\nObservation: ${observation}\n`;
-           
-         } catch (parseError: any) {
-           const obs = `Failed to parse Action Input JSON: ${parseError.message}`;
-           log('error', obs);
-           history += text + `\nObservation: ${obs}\n`;
-         }
-      } else {
-         if (!thoughtMatch) {
-             const obs = "Format error. You must use 'Thought:', 'Action:/Action Input:', or 'Final Answer:'.";
-             log('error', obs);
-             history += text + `\nObservation: ${obs}\n`;
-         } else {
-             history += text + "\n";
-         }
-      }
+          const res = await ModelRouter.generate(provider, reviewPrompt);
+          try {
+             const match = res.match(/\{[\s\S]*\}/);
+             if (!match) throw new Error("No JSON found");
+             const evaluation = JSON.parse(match[0]);
+             
+             log('thought', `Evaluation pass: ${evaluation.pass}. Critique: ${evaluation.critique}`);
+             
+             if (evaluation.pass === true || evaluation.next_node === 'FINAL_OUTPUT') {
+                currentNode = 'FINAL_OUTPUT';
+             } else {
+                log('error', `Self-Healing Triggered. Routing back to EXECUTION NODE to address: ${evaluation.feedback_to_execution}`);
+                internalContext += `\n[REVIEWER CRITIQUE/FEEDBACK FOR YOU TO FIX]\n${evaluation.feedback_to_execution}\n`;
+                currentNode = 'EXECUTION';
+             }
+          } catch(e) {
+             log('thought', `Reviewer bypassed/failed syntax. Proceeding to Output.`);
+             currentNode = 'FINAL_OUTPUT';
+          }
+       }
 
     } catch (e: any) {
-       log('error', `Agent Router LLM Failure: ${e.message}`);
-       return `Failed: ${e.message}`;
+       log('error', `OS Graph Architecture Failure (Node ${currentNode}): ${e.message}`);
+       return `Task critically failed in ${currentNode} node: ${e.message}`;
     }
   }
 
-  log('error', "Max OS cycle limits exceeded. Terminating to prevent infinite loop or memory leak.");
-  return "Task timed out.";
+  // === NODE: FINAL OUTPUT ===
+  log('system', `[NODE: FINAL_OUTPUT] Synthesizing artifact rendering for user...`);
+  const finalPrompt = `You are the FINAL OUTPUT NODE. 
+Synthesize a direct, professional confirmation of what was done based on the context. Provide any code artifacts directly so the web UI handles them.
+
+Objective: ${objective}
+Context Log:
+${internalContext}
+
+Provide the final answer seamlessly. If there is code to output, use markdown blocks appropriately.`;
+
+  finalResult = await ModelRouter.generate(provider, finalPrompt);
+  
+  // Implicitly store the finished objective in Vector Memory for long-term project grounding
+  await vdb.store(`Task Completed: ${objective}\nSummary: ${finalResult.substring(0, 1000)}`, ['task_history', 'implicit_memory']);
+
+  return finalResult;
 }
