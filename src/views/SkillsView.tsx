@@ -1,257 +1,236 @@
 import React, { useState, useEffect } from "react";
-import { Database, UploadCloud, FileText, Link as LinkIcon, Cpu, Trash2, HardDrive, FileJson, CheckCircle2, AlertCircle } from "lucide-react";
+import { Zap, Github, ShoppingCart, TrendingUp, MonitorSmartphone, Server, Trash2, PlusCircle, CheckCircle2, AlertCircle, X } from "lucide-react";
 
-interface SkillData {
+interface AgentSkill {
   id: string;
   name: string;
-  type: 'document' | 'text' | 'url';
-  size: string;
-  status: 'active' | 'processing';
-  createdAt: number;
+  description: string;
+  dependencies: string[];
+  sop: string;
+  status: 'active' | 'inactive';
+  icon: string;
+  isCustom: boolean;
 }
 
+const NATIVE_SKILLS: AgentSkill[] = [
+  {
+    id: "skill_playwright_browsing",
+    name: "Headless Web Browser",
+    description: "Allows the OS to autonomously browse the live internet, click elements, fill forms, and take screenshots using Puppeteer/Playwright.",
+    icon: "MonitorSmartphone",
+    dependencies: ["npm install playwright", "npx playwright install chromium"],
+    sop: "When the objective requires scraping dynamic websites or shopping, create a Node script calling Playwright. Launch chromium headlessly. Output the scraped text to stdout or click elements procedurally. Use system_exec to run your script and observe the browser DOM.",
+    status: "inactive",
+    isCustom: false
+  },
+  {
+    id: "skill_trading_backtest",
+    name: "Trading Strategy Backtester",
+    description: "Grants quantitative capability. Backtest trading logic over historical data using Python plugins.",
+    icon: "TrendingUp",
+    dependencies: ["pip install pandas numpy backtrader yfinance"],
+    sop: "When asked to analyze or backtest a trading strategy, write a standalone Python script utilizing 'backtrader' and 'yfinance'. Fetch historical OHLCV data directly. Program the logic into a strategy class, run the Cerebro engine, and print the Final Portfolio Value alongside a breakdown of win rates.",
+    status: "inactive",
+    isCustom: false
+  },
+  {
+    id: "skill_ecom_shopper",
+    name: "Autonomous Shopper API",
+    description: "Equips the agent with logic circuits to interact with standard E-Commerce structures.",
+    icon: "ShoppingCart",
+    dependencies: ["npm install axios cheerio puppeteer"],
+    sop: "When asked to buy something or construct an order, ALWAYS search multiple marketplaces using Cherrio/Puppeteer. Compile the optimal price list. Simulate logging into the target store, navigating to the cart, and stop explicitly right before entering payment details.",
+    status: "inactive",
+    isCustom: false
+  }
+];
+
 export function SkillsView() {
-  const [skills, setSkills] = useState<SkillData[]>([]);
-  const [activeTab, setActiveTab] = useState<'document' | 'text' | 'url'>('document');
+  const [skills, setSkills] = useState<AgentSkill[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [inputValue, setInputValue] = useState("");
-  const [inputName, setInputName] = useState("");
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customSkill, setCustomSkill] = useState({ name: "", description: "", dependencies: "", sop: "" });
 
   useEffect(() => {
-    const saved = localStorage.getItem("seabot-skills-data");
-    if (saved) {
-      try {
-        setSkills(JSON.parse(saved));
-      } catch (e) {}
-    } else {
-      setSkills([
-        {
-          id: "skill_fs_1",
-          name: "Company Architecture Docs",
-          type: "document",
-          size: "4.2 MB",
-          status: "active",
-          createdAt: Date.now() - 172800000
-        },
-        {
-          id: "skill_fs_2",
-          name: "API Spec Reference URLs",
-          type: "url",
-          size: "125 KB",
-          status: "active",
-          createdAt: Date.now() - 86400000
-        }
-      ]);
-    }
+    fetch('/api/fs/read?path=.nexus/skills.json')
+      .then(res => res.json())
+      .then(data => {
+         if (data && data.content) {
+            setSkills(JSON.parse(data.content));
+         } else {
+            setSkills(NATIVE_SKILLS);
+            syncToBackend(NATIVE_SKILLS);
+         }
+      }).catch(() => {
+         setSkills(NATIVE_SKILLS);
+         syncToBackend(NATIVE_SKILLS);
+      });
   }, []);
 
-  const saveSkills = (newSkills: SkillData[]) => {
-    setSkills(newSkills);
-    localStorage.setItem("seabot-skills-data", JSON.stringify(newSkills));
+  const syncToBackend = async (data: AgentSkill[]) => {
+    setIsProcessing(true);
+    try {
+      await fetch('/api/fs/write', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          targetPath: '.nexus/skills.json',
+          content: JSON.stringify(data, null, 2)
+        })
+      });
+    } catch(e) {}
+    setIsProcessing(false);
   };
 
-  const handleIngest = (e: React.FormEvent) => {
+  const toggleStatus = (id: string) => {
+    const next = skills.map(s => s.id === id ? { ...s, status: s.status === 'active' ? 'inactive' : 'active' } as AgentSkill : s);
+    setSkills(next);
+    syncToBackend(next);
+  };
+
+  const deleteSkill = (id: string) => {
+    const next = skills.filter(s => s.id !== id);
+    setSkills(next);
+    syncToBackend(next);
+  };
+
+  const saveCustomSkill = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputName.trim()) return;
+    if (!customSkill.name || !customSkill.sop) return;
 
-    setIsProcessing(true);
-
-    const newSkill: SkillData = {
-      id: "skill_" + Math.random().toString(36).substr(2, 9),
-      name: inputName,
-      type: activeTab,
-      size: activeTab === 'document' ? Math.floor(Math.random() * 10 + 1) + " MB" : (Math.floor(Math.random() * 500 + 10) + " KB"),
-      status: 'processing',
-      createdAt: Date.now()
+    const newSkill: AgentSkill = {
+       id: `custom_skill_${Date.now()}`,
+       name: customSkill.name,
+       description: customSkill.description,
+       dependencies: customSkill.dependencies.split(',').map(s => s.trim()).filter(Boolean),
+       sop: customSkill.sop,
+       status: 'active',
+       icon: 'Server',
+       isCustom: true
     };
 
-    const updated = [newSkill, ...skills];
-    saveSkills(updated);
-    
-    setInputName("");
-    setInputValue("");
-
-    // Simulate vectorization and embedding delay
-    setTimeout(() => {
-      saveSkills(updated.map(s => s.id === newSkill.id ? { ...s, status: 'active' } : s));
-      setIsProcessing(false);
-    }, 2500);
+    const next = [...skills, newSkill];
+    setSkills(next);
+    syncToBackend(next);
+    setShowCustomModal(false);
+    setCustomSkill({ name: "", description: "", dependencies: "", sop: "" });
   };
 
-  const removeSkill = (id: string) => {
-    saveSkills(skills.filter(s => s.id !== id));
+  const renderIcon = (name: string) => {
+    if (name === "MonitorSmartphone") return <MonitorSmartphone className="w-6 h-6 text-emerald-400" />;
+    if (name === "TrendingUp") return <TrendingUp className="w-6 h-6 text-purple-400" />;
+    if (name === "ShoppingCart") return <ShoppingCart className="w-6 h-6 text-amber-400" />;
+    return <Server className="w-6 h-6 text-blue-400" />;
   };
 
   return (
-    <div className="flex flex-col xl:flex-row w-full h-full bg-[#0A0A0A] text-[#ededed] overflow-hidden">
+    <div className="flex flex-col w-full h-full bg-[#0A0A0A] text-[#ededed] overflow-y-auto custom-scrollbar p-6 lg:p-10">
       
-      {/* LEFT PANEL: Ingestion Studio */}
-      <div className="w-full xl:w-[450px] bg-[#111] border-r border-[#222] flex flex-col shrink-0 overflow-y-auto custom-scrollbar h-full">
-        <div className="p-6 md:p-8 border-b border-[#222]">
-           <h1 className="text-xl font-bold text-white mb-2 flex items-center gap-3">
-             <Cpu className="w-6 h-6 text-emerald-400" /> Data & Skills
+      <div className="flex items-center justify-between mb-8 max-w-6xl mx-auto w-full">
+         <div>
+           <h1 className="text-2xl font-bold flex items-center gap-3 tracking-wide">
+             <Zap className="w-7 h-7 text-yellow-400" /> Executive Capabilities & Skills
            </h1>
-           <p className="text-[#a1a1aa] text-[13px] leading-relaxed">
-             Feed various types and sizes of data into the agent's contextual memory pipeline. The AI will cross-reference this embedded knowledge to act faster, more accurately, and with dedicated expertise.
+           <p className="text-[#a1a1aa] mt-2 max-w-3xl leading-relaxed text-[14px]">
+             Manage the OS core capabilities. When a skill is deployed, its Standard Operating Procedure (SOP) and dependencies are injected natively into the Agent's Node Execution Graph, granting it literal instructions on how to use standard tooling to achieve exotic tasks autonomously.
            </p>
-        </div>
-
-        <div className="p-6 md:p-8 flex-1">
-           <h2 className="text-[11px] font-bold text-[#777] uppercase tracking-wider mb-4 flex items-center gap-2">
-              <UploadCloud className="w-4 h-4" /> Add New Skill Data
-           </h2>
-
-           {/* Tabs */}
-           <div className="flex gap-1 bg-[#0A0A0A] border border-[#222] p-1 rounded-lg mb-6">
-              <button 
-                 onClick={() => setActiveTab('document')} 
-                 className={`flex-1 py-1.5 text-[11px] font-bold rounded flex justify-center items-center gap-1.5 transition-all ${activeTab === 'document' ? 'bg-[#1a1a1a] text-white shadow-sm border border-[#333]' : 'text-[#777] hover:text-[#ccc]'}`}
-              >
-                 <FileText className="w-3.5 h-3.5" /> File
-              </button>
-              <button 
-                 onClick={() => setActiveTab('text')} 
-                 className={`flex-1 py-1.5 text-[11px] font-bold rounded flex justify-center items-center gap-1.5 transition-all ${activeTab === 'text' ? 'bg-[#1a1a1a] text-white shadow-sm border border-[#333]' : 'text-[#777] hover:text-[#ccc]'}`}
-              >
-                 <FileJson className="w-3.5 h-3.5" /> Text
-              </button>
-              <button 
-                 onClick={() => setActiveTab('url')} 
-                 className={`flex-1 py-1.5 text-[11px] font-bold rounded flex justify-center items-center gap-1.5 transition-all ${activeTab === 'url' ? 'bg-[#1a1a1a] text-white shadow-sm border border-[#333]' : 'text-[#777] hover:text-[#ccc]'}`}
-              >
-                 <LinkIcon className="w-3.5 h-3.5" /> URL
-              </button>
-           </div>
-
-           {/* Input Form */}
-           <form onSubmit={handleIngest} className="flex flex-col gap-4">
-              <div>
-                 <label className="block text-[11px] font-bold text-[#888] uppercase tracking-wider mb-2">Dataset / Skill Name</label>
-                 <input 
-                    required
-                    type="text" 
-                    value={inputName}
-                    onChange={(e) => setInputName(e.target.value)}
-                    placeholder="e.g. Q4 Financial Reports"
-                    className="w-full bg-[#050505] border border-[#333] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-emerald-500/50"
-                 />
-              </div>
-
-              {activeTab === 'document' && (
-                 <div className="border-2 border-dashed border-[#333] bg-[#0A0A0A] rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all group">
-                    <div className="w-12 h-12 bg-[#111] rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                       <UploadCloud className="w-5 h-5 text-emerald-500" />
-                    </div>
-                    <div className="text-[13px] font-bold text-white mb-1">Click to browse or drag file</div>
-                    <div className="text-[11px] text-[#777]">PDF, CSV, JSON, TXT (No file size limit)</div>
-                 </div>
-              )}
-
-              {activeTab === 'text' && (
-                 <div>
-                    <label className="block text-[11px] font-bold text-[#888] uppercase tracking-wider mb-2">Raw Data Output</label>
-                    <textarea 
-                       required
-                       value={inputValue}
-                       onChange={(e) => setInputValue(e.target.value)}
-                       placeholder="Paste raw text or JSON data here to vectorize..."
-                       className="w-full bg-[#050505] border border-[#333] rounded-xl p-3 text-[13px] font-mono text-white outline-none focus:border-emerald-500/50 resize-none h-32 custom-scrollbar"
-                    />
-                 </div>
-              )}
-
-              {activeTab === 'url' && (
-                 <div>
-                    <label className="block text-[11px] font-bold text-[#888] uppercase tracking-wider mb-2">Target Address</label>
-                    <input 
-                       required
-                       type="url"
-                       value={inputValue}
-                       onChange={(e) => setInputValue(e.target.value)}
-                       placeholder="https://docs.example.com"
-                       className="w-full bg-[#050505] border border-[#333] rounded-lg px-3 py-2 text-[13px] font-mono text-white outline-none focus:border-emerald-500/50"
-                    />
-                 </div>
-              )}
-
-              <button 
-                 type="submit" 
-                 disabled={isProcessing || !inputName.trim()}
-                 className="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-[12px] py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 uppercase tracking-wide"
-              >
-                 {isProcessing ? (
-                    <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Vectorizing Data...</>
-                 ) : "Ingest & Train"}
-              </button>
-           </form>
-        </div>
+         </div>
+         <button 
+            onClick={() => setShowCustomModal(true)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium shadow-lg transition-all"
+         >
+           <PlusCircle className="w-4 h-4" /> Add Custom Skill
+         </button>
       </div>
 
-      {/* RIGHT PANEL: Vectorized Memory Grid */}
-      <div className="flex-1 p-6 md:p-8 overflow-y-auto custom-scrollbar h-full relative">
-         <div className="flex items-center justify-between mb-8">
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-               <Database className="w-5 h-5 text-[#888]" /> Embedded Knowledge Base
-            </h2>
-            <div className="text-[11px] text-[#777] font-mono bg-[#111] px-2 py-1 border border-[#222] rounded flex items-center gap-2">
-               <HardDrive className="w-3.5 h-3.5" /> Total Index: {skills.length} Vectors
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto w-full">
+        {skills.map(skill => (
+           <div key={skill.id} className="bg-[#111] border border-[#222] hover:border-[#333] flex flex-col rounded-xl overflow-hidden transition-all shadow-sm">
+             <div className="p-5 border-b border-[#222] flex gap-4">
+                <div className="w-12 h-12 rounded-xl bg-[#1a1a1a] border border-[#333] flex items-center justify-center shrink-0">
+                  {renderIcon(skill.icon)}
+                </div>
+                <div>
+                   <h3 className="font-bold text-[15px]">{skill.name}</h3>
+                   <div className="text-[11px] font-mono mt-1 text-[#777] uppercase">
+                     {skill.isCustom ? 'Custom Plugin' : 'Native Core'}
+                   </div>
+                </div>
+             </div>
+             
+             <div className="p-5 flex-1 flex flex-col gap-4">
+                <p className="text-[13px] text-[#aaa] leading-relaxed flex-1">
+                  {skill.description}
+                </p>
+                
+                {skill.dependencies.length > 0 && (
+                  <div className="bg-[#050505] border border-[#222] rounded text-[10px] font-mono p-2">
+                    <div className="text-[#555] mb-1">REQ DEPENDENCIES</div>
+                    <ul className="text-blue-400 list-disc pl-4 space-y-1">
+                       {skill.dependencies.map((d, i) => <li key={i}>{d}</li>)}
+                    </ul>
+                  </div>
+                )}
+             </div>
+
+             <div className="bg-[#161616] border-t border-[#222] p-3 flex justify-between items-center">
+                <button 
+                  onClick={() => toggleStatus(skill.id)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[12px] font-bold transition-all ${skill.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-white/5 text-[#777] hover:text-[#ccc] border border-transparent hover:border-[#333]'}`}
+                >
+                   {skill.status === 'active' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                   {skill.status === 'active' ? 'Deployed Active' : 'Install / Activate'}
+                </button>
+
+                {skill.isCustom && (
+                  <button onClick={() => deleteSkill(skill.id)} className="text-[#555] hover:text-red-400 transition-colors p-2">
+                     <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+             </div>
+           </div>
+        ))}
+      </div>
+
+      {/* CUSTOM SKILL MODAL */}
+      {showCustomModal && (
+         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+            <div className="bg-[#111] border border-[#333] rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col font-sans">
+               <div className="p-5 border-b border-[#222] flex justify-between items-center">
+                  <h2 className="text-lg font-bold flex items-center gap-2">
+                    <Server className="w-5 h-5 text-blue-400" /> Create Custom Logic Skill
+                  </h2>
+                  <button onClick={() => setShowCustomModal(false)} className="text-[#777] hover:text-white">
+                     <X className="w-5 h-5" />
+                  </button>
+               </div>
+               
+               <form onSubmit={saveCustomSkill} className="p-5 flex flex-col gap-4">
+                  <div>
+                     <label className="text-[12px] font-bold text-[#888] uppercase mb-1 block">Skill Name</label>
+                     <input required autoFocus value={customSkill.name} onChange={e => setCustomSkill({...customSkill, name: e.target.value})} className="w-full bg-[#050505] border border-[#333] rounded px-3 py-2 text-[13px] outline-none focus:border-blue-500" placeholder="e.g. Discord Notifier Script" />
+                  </div>
+                  <div>
+                     <label className="text-[12px] font-bold text-[#888] uppercase mb-1 block">Description</label>
+                     <input required value={customSkill.description} onChange={e => setCustomSkill({...customSkill, description: e.target.value})} className="w-full bg-[#050505] border border-[#333] rounded px-3 py-2 text-[13px] outline-none focus:border-blue-500" placeholder="What does this capability do?" />
+                  </div>
+                  <div>
+                     <label className="text-[12px] font-bold text-[#888] uppercase mb-1 block">Terminal Dependencies (Comma Separated)</label>
+                     <input value={customSkill.dependencies} onChange={e => setCustomSkill({...customSkill, dependencies: e.target.value})} className="w-full bg-[#050505] border border-[#333] rounded px-3 py-2 text-[13px] font-mono outline-none focus:border-blue-500" placeholder="npm install discord.js, pip install requests" />
+                  </div>
+                  <div>
+                     <label className="text-[12px] font-bold text-[#888] uppercase mb-1 block">Standard Operating Procedure (SOP)</label>
+                     <textarea required value={customSkill.sop} onChange={e => setCustomSkill({...customSkill, sop: e.target.value})} className="w-full bg-[#050505] border border-[#333] rounded px-3 py-2 text-[13px] font-mono outline-none focus:border-blue-500 h-32 resize-none custom-scrollbar" placeholder="When asked to notify Discord, you MUST write a node script that logs in using the DISCORD_TOKEN env variable..." />
+                  </div>
+
+                  <div className="mt-4 flex gap-3">
+                     <button type="button" onClick={() => setShowCustomModal(false)} className="flex-1 py-2 rounded-lg font-bold text-[13px] bg-[#161616] border border-[#333] text-white hover:bg-[#222]">Cancel</button>
+                     <button type="submit" className="flex-1 py-2 rounded-lg font-bold text-[13px] bg-blue-600 text-white hover:bg-blue-500">Deploy Global Skill</button>
+                  </div>
+               </form>
             </div>
          </div>
-
-         {skills.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 border border-dashed border-[#333] rounded-2xl bg-white/[0.01]">
-               <Database className="w-12 h-12 text-[#333] mb-4" />
-               <p className="text-[#888] font-medium text-[14px]">Knowledge Base Empty</p>
-               <p className="text-[#555] text-xs mt-1 max-w-sm text-center">Upload files, plain text, or URLs on the left to start expanding the agent's skills.</p>
-            </div>
-         ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-               {skills.map(skill => (
-                  <div key={skill.id} className="bg-[#111] border border-[#222] rounded-xl overflow-hidden hover:border-[#444] transition-colors group flex flex-col shadow-sm">
-                     <div className="p-4 border-b border-[#222] flex items-center justify-between bg-[#161616] h-[72px]">
-                        <div className="flex items-center gap-3 w-full">
-                           <div className="w-10 h-10 rounded-lg bg-[#0A0A0A] border border-[#333] flex items-center justify-center shrink-0">
-                              {skill.type === 'document' && <FileText className="w-5 h-5 text-blue-400" />}
-                              {skill.type === 'text' && <FileJson className="w-5 h-5 text-amber-400" />}
-                              {skill.type === 'url' && <LinkIcon className="w-5 h-5 text-purple-400" />}
-                           </div>
-                           <div className="min-w-0 pr-4">
-                              <h3 className="font-bold text-[13px] text-white truncate" title={skill.name}>{skill.name}</h3>
-                              <p className="text-[10px] text-[#777] uppercase tracking-wider font-mono mt-0.5">{skill.type} DATASET</p>
-                           </div>
-                        </div>
-                     </div>
-                     <div className="p-4 flex-1 flex flex-col justify-between gap-4">
-                        <div className="flex items-center justify-between text-[11px] font-mono text-[#888]">
-                           <span>Size Structure</span>
-                           <span className="text-[#ededed] font-medium">{skill.size}</span>
-                        </div>
-                        
-                        <div className="flex items-end justify-between mt-auto">
-                           {skill.status === 'processing' ? (
-                              <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-500 animate-pulse">
-                                 <div className="w-3 h-3 border border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-                                 Processing...
-                              </div>
-                           ) : (
-                              <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-500">
-                                 <CheckCircle2 className="w-4 h-4" /> Active Array
-                              </div>
-                           )}
-                           <button 
-                              onClick={() => removeSkill(skill.id)}
-                              className="text-[#555] hover:text-red-400 transition-colors"
-                              title="Delete Memory"
-                           >
-                              <Trash2 className="w-4 h-4" />
-                           </button>
-                        </div>
-                     </div>
-                  </div>
-               ))}
-            </div>
-         )}
-      </div>
+      )}
 
     </div>
   );

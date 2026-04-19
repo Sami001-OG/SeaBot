@@ -28,7 +28,7 @@ export async function runRealAgent(
     return "Error: Maximum sub-agent depth exceeded (Preventing infinite swarm).";
   }
 
-  // --- Sandboxed Execution Engine ---
+  // Define OS Base Tools
   const tools: Record<string, ToolDesc> = {
     system_exec: {
       name: "system_exec",
@@ -38,7 +38,6 @@ export async function runRealAgent(
         return new Promise((resolve) => {
           exec(args.command, { cwd: process.cwd() }, (error, stdout, stderr) => {
             if (error) {
-               // Self-Healing mechanism natively traps the exit code
                resolve(`[EXIT CODE ${error.code || 1}] Error: ${error.message}\nStderr: ${stderr}`);
                return;
             }
@@ -47,6 +46,7 @@ export async function runRealAgent(
         });
       }
     },
+    // ... we keep all tools exactly the same.
     fs_list: {
       name: "fs_list",
       description: "Lists all files and directories in a given path. Crucial for understanding project architecture.",
@@ -161,9 +161,29 @@ export async function runRealAgent(
     `- ${t.name}: ${t.description}\n  Format: ${t.usage}`
   ).join('\n\n');
 
+  // Inject Dynamic Custom Skills
+  let dynamicSkillsContext = '';
+  try {
+     const customSkillsPath = path.resolve(process.cwd(), '.nexus', 'skills.json');
+     const skillsDataRaw = await fs.readFile(customSkillsPath, 'utf8');
+     const customSkills = JSON.parse(skillsDataRaw);
+     const activeSkills = customSkills.filter((s: any) => s.status === 'active');
+     if (activeSkills.length > 0) {
+        log('system', `[OS BOOT] Mounted ${activeSkills.length} Advanced Agent Skills.`);
+        dynamicSkillsContext += `\n====== SYSTEM SKILLS & OPERATING PROCEDURES ======\n`;
+        dynamicSkillsContext += `The user has enabled the following dedicated capabilities for you. Use them proactively if the user's objective aligns:\n\n`;
+        activeSkills.forEach((s: any) => {
+           dynamicSkillsContext += `[SKILL: ${s.name}]\nDESCRIPTION: ${s.description}\nPREREQUISITES: You MUST ensure these dependencies exist before executing (RUN system_exec): ${s.dependencies.join(', ')}\nSOP/PROTOCOL: ${s.sop}\n\n`;
+        });
+        dynamicSkillsContext += `=================================================\n`;
+     }
+  } catch (e) {
+     // No custom skills defined or not found, perfectly fine.
+  }
+
   // Graph State Machine
   let currentNode: AgentNode = 'PLANNER';
-  let internalContext = `User Objective: ${objective}\n\n`;
+  let internalContext = `User Objective: ${objective}\n${dynamicSkillsContext}\n`;
   let finalResult = "";
 
   const MAX_GLOBAL_STEPS = 30;
