@@ -8,126 +8,6 @@ interface FSItem {
   path: string;
 }
 
-const INITIAL_MODEL_DIRECTORY = [
-  { provider: "Google", models: [
-    { id: "gemini:gemini-3.1-pro", name: "Gemini 3.1 Pro", badge: "Smart" },
-    { id: "gemini:gemini-3.1-flash", name: "Gemini 3.1 Flash", badge: "Fast" },
-    { id: "gemini:gemini-3-pro", name: "Gemini 3 Pro" },
-    { id: "gemini:gemini-2.5-pro", name: "Gemini 2.5 Pro" },
-    { id: "gemini:gemini-2.5-flash", name: "Gemini 2.5 Flash", badge: "Fast" },
-    { id: "gemini:gemini-2.5-flash-lite", name: "Gemini 2.5 Flash-Lite" },
-    { id: "gemini:gemini-2.5-flash-live", name: "Gemini 2.5 Flash Live" },
-    { id: "gemini:gemini-2.5-flash-tts", name: "Gemini 2.5 Flash TTS" },
-    { id: "gemini:gemini-2.5-pro-tts", name: "Gemini 2.5 Pro TTS" },
-    { id: "gemini:gemini-2", name: "Gemini 2" },
-    { id: "gemini:gemini-1.5", name: "Gemini 1.5" },
-    { id: "gemini:gemma-3n", name: "Gemma 3n" },
-    { id: "gemini:gemma", name: "Gemma" },
-    { id: "gemini:veo-3.1", name: "Veo 3.1" },
-    { id: "gemini:imagen-4", name: "Imagen 4" },
-    { id: "gemini:lyria", name: "Lyria" },
-    { id: "gemini:palm-2", name: "PaLM 2" },
-    { id: "gemini:nano-banana-2", name: "Nano Banana 2" },
-    { id: "gemini:nano-banana-pro", name: "Nano Banana Pro" }
-  ]},
-  { provider: "OpenAI", models: [
-    { id: "openai:gpt-5.4-pro", name: "GPT-5.4 Pro", badge: "Smart" },
-    { id: "openai:gpt-5.4", name: "GPT-5.4" },
-    { id: "openai:gpt-5.4-mini", name: "GPT-5.4 Mini", badge: "Fast" },
-    { id: "openai:gpt-5.4-nano", name: "GPT-5.4 Nano" },
-    { id: "openai:gpt-5.2", name: "GPT-5.2" },
-    { id: "openai:gpt-5.1", name: "GPT-5.1" },
-    { id: "openai:gpt-5", name: "GPT-5" },
-    { id: "openai:gpt-5-mini", name: "GPT-5-mini" },
-    { id: "openai:gpt-5-nano", name: "GPT-5-nano" },
-    { id: "openai:gpt-4.1", name: "GPT-4.1" },
-    { id: "openai:gpt-4.1-mini", name: "GPT-4.1 Mini" },
-    { id: "openai:gpt-4.1-nano", name: "GPT-4.1 Nano" },
-    { id: "openai:gpt-4o", name: "GPT-4o" },
-    { id: "openai:o1", name: "o1", badge: "Reason" },
-    { id: "openai:o3", name: "o3", badge: "Reason" },
-    { id: "openai:gpt-oss-20b", name: "GPT-oss-20B" },
-    { id: "openai:gpt-oss-120b", name: "GPT-oss-120B" },
-    { id: "openai:codex-max", name: "Codex Max" },
-    { id: "openai:dall-e", name: "DALL-E" },
-    { id: "openai:sora", name: "Sora" },
-    { id: "openai:whisper", name: "Whisper" }
-  ]},
-  { provider: "Anthropic", models: [
-    { id: "anthropic:claude-4-6-opus", name: "Claude Opus 4.6", badge: "Smart" },
-    { id: "anthropic:claude-4-5-opus", name: "Claude Opus 4.5" },
-    { id: "anthropic:claude-4-1-opus", name: "Claude Opus 4.1" },
-    { id: "anthropic:claude-4-opus", name: "Claude Opus 4" },
-    { id: "anthropic:claude-3-5-opus", name: "Claude Opus 3.5" },
-    { id: "anthropic:claude-4-6-sonnet", name: "Claude Sonnet 4.6" },
-    { id: "anthropic:claude-4-5-sonnet", name: "Claude Sonnet 4.5" },
-    { id: "anthropic:claude-4-sonnet", name: "Claude Sonnet 4" },
-    { id: "anthropic:claude-3-5-sonnet", name: "Claude Sonnet 3.5", badge: "Smart" },
-    { id: "anthropic:claude-4-5-haiku", name: "Claude Haiku 4.5", badge: "Fast" },
-    { id: "anthropic:claude-4-haiku", name: "Claude Haiku 4" },
-    { id: "anthropic:claude-3-5-haiku", name: "Claude Haiku 3.5" }
-  ]},
-  { provider: "Meta", models: [
-    { id: "groq:llama-4-maverick", name: "Llama 4 Maverick (17B)", badge: "Fast" },
-    { id: "groq:llama-4-scout", name: "Llama 4 Scout (17B)" },
-    { id: "groq:llama-3.3-70b", name: "Llama 3.3 (70B)" },
-    { id: "groq:llama-3.2-90b-vision", name: "Llama 3.2 90B Vision" },
-    { id: "groq:llama-3.2-11b-vision", name: "Llama 3.2 11B Vision" },
-    { id: "groq:llama-3.2-3b", name: "Llama 3.2 1B/3B" },
-    { id: "groq:llama-3.1", name: "Llama 3.1" }
-  ]},
-  { provider: "xAI", models: [
-    { id: "openrouter:xai/grok-4.20-reasoning", name: "Grok 4.20-reasoning", badge: "Reason" },
-    { id: "openrouter:xai/grok-4.20-non-reasoning", name: "Grok 4.20-non-reasoning" },
-    { id: "openrouter:xai/grok-4.1-fast-reasoning", name: "Grok 4.1-fast-reasoning" },
-    { id: "openrouter:xai/grok-4.1-fast", name: "Grok 4.1-fast", badge: "Fast" },
-    { id: "openrouter:xai/grok-4", name: "Grok 4" },
-    { id: "openrouter:xai/grok-3", name: "Grok 3" },
-    { id: "openrouter:xai/grok-3-mini", name: "Grok 3-mini" },
-    { id: "openrouter:xai/grok-2-vision", name: "Grok 2 Vision" },
-    { id: "openrouter:xai/grok-2", name: "Grok 2" }
-  ]},
-  { provider: "Mistral AI", models: [
-    { id: "mistral:mistral-large-3", name: "Mistral Large 3" },
-    { id: "mistral:mistral-medium-3.1", name: "Mistral Medium 3.1" },
-    { id: "mistral:mistral-small-3.1", name: "Mistral Small 3.1" },
-    { id: "mistral:ministral-3", name: "Ministral 3 (3B/8B/14B)" },
-    { id: "mistral:mistral-7b", name: "Mistral 7B" },
-    { id: "mistral:codestral", name: "Codestral" },
-    { id: "mistral:pixtral", name: "Pixtral" }
-  ]},
-  { provider: "DeepSeek", models: [
-    { id: "openrouter:deepseek/deepseek-v3.2", name: "DeepSeek-V3.2", badge: "Smart" },
-    { id: "openrouter:deepseek/deepseek-v3.1", name: "DeepSeek-V3.1" },
-    { id: "openrouter:deepseek/deepseek-v3", name: "DeepSeek-V3" },
-    { id: "openrouter:deepseek/deepseek-r1-0528", name: "DeepSeek-R1-0528" },
-    { id: "openrouter:deepseek/deepseek-r1", name: "DeepSeek-R1", badge: "Reason" },
-    { id: "openrouter:deepseek/deepseek-r1-zero", name: "DeepSeek-R1-Zero" },
-    { id: "openrouter:deepseek/deepseek-v2", name: "DeepSeek-V2" },
-    { id: "openrouter:deepseek/deepseek-llm-67b", name: "DeepSeek-LLM (7B/67B)" },
-    { id: "openrouter:deepseek/deepseek-coder", name: "DeepSeek Coder" }
-  ]},
-  { provider: "Alibaba / Qwen", models: [
-    { id: "openrouter:qwen/qwen3-235b-a22b", name: "Qwen3-235B-A22B" },
-    { id: "openrouter:qwen/qwen3-32b", name: "Qwen3-32B" },
-    { id: "openrouter:qwen/qwen3.5-flash", name: "Qwen3.5-Flash" },
-    { id: "openrouter:qwen/qwen3.5-122b-a10b", name: "Qwen3.5-122B-A10B" },
-    { id: "openrouter:qwen/qwq", name: "QVQ" },
-    { id: "openrouter:qwen/qwen-omni", name: "Qwen-Omni" }
-  ]},
-  { provider: "Microsoft / Amazon / NVIDIA / Others", models: [
-    { id: "openrouter:microsoft/phi-4-reasoning", name: "Phi-4-reasoning" },
-    { id: "openrouter:amazon/nova-premier", name: "Amazon Nova Premier" },
-    { id: "openrouter:nvidia/cosmos-3", name: "NVIDIA Cosmos 3" },
-    { id: "openrouter:bytedance/seed-2.0-pro", name: "Seed-2.0-Pro" },
-    { id: "openrouter:zhipu/glm-5v-turbo", name: "GLM-5V-Turbo" },
-    { id: "openrouter:moonshot/kimi-k2.5", name: "Kimi K2.5" },
-    { id: "openrouter:minimax/minimax-text-01", name: "MiniMax-Text-01" },
-    { id: "openrouter:cohere/command-r-plus", name: "Command R+" }
-  ]},
-  { provider: "OpenRouter", models: []}
-];
-
 // --- Interactive Render Components ---
 function InteractivePreview({ inline, className, children }: any) {
   const [viewMode, setViewMode] = useState<'preview' | 'code'>('preview');
@@ -265,11 +145,6 @@ export function StudioView() {
   const [messages, setMessages] = useState<{ role: string; content: string; type?: string }[]>([]);
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-
-  const [provider, setProvider] = useState("gemini:gemini-2.5-flash"); // Exact string mapping
-  const [modelDirectory, setModelDirectory] = useState(INITIAL_MODEL_DIRECTORY);
-  const [modelSearch, setModelSearch] = useState("");
-  const [showProviderMenu, setShowProviderMenu] = useState(false);
   const [isAutoMode, setIsAutoMode] = useState(true);
   
   // === Terminal Output State ===
@@ -281,68 +156,16 @@ export function StudioView() {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const terminalEndRef = useRef<HTMLDivElement>(null);
-  const providerMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { terminalEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [terminalLogs]);
   useEffect(() => {
-    // Attempt dynamically fetching all available OpenRouter Models
-    fetch("https://openrouter.ai/api/v1/models")
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.data) {
-          const freeModels: any[] = [];
-          const paidModels: any[] = [];
-          
-          data.data.forEach((m: any) => {
-             const isFree = (m.pricing?.prompt === "0" && m.pricing?.completion === "0") || m.id.endsWith(":free") || m.id.includes("-free");
-             const mapped = {
-                id: `openrouter:${m.id}`,
-                name: m.name || m.id,
-                badge: isFree ? "Free" : (m.context_length >= 100000 ? `${Math.floor(m.context_length/1000)}k` : undefined)
-             };
-             
-             if (isFree) freeModels.push(mapped);
-             else paidModels.push(mapped);
-          });
-          
-          setModelDirectory(prev => {
-             const copy = [...prev];
-             const existingIds = new Set();
-             copy.forEach(g => g.models.forEach(x => existingIds.add(x.id)));
-             
-             const uniqueFree = freeModels.filter((x: any) => !existingIds.has(x.id));
-             const uniquePaid = paidModels.filter((x: any) => !existingIds.has(x.id));
-             
-             const orIdx = copy.findIndex(g => g.provider === "OpenRouter");
-             if (orIdx >= 0) {
-                // rename existing OpenRouter to OpenRouter (Premium)
-                copy[orIdx].provider = "OpenRouter (Premium)";
-                copy[orIdx].models = [...copy[orIdx].models, ...uniquePaid];
-                
-                // Insert Free models group right above it
-                if (uniqueFree.length > 0) {
-                   copy.splice(orIdx, 0, { provider: "OpenRouter (Free)", models: uniqueFree });
-                }
-             }
-             return copy;
-          });
-        }
-      }).catch(err => console.error("Could not fetch OpenRouter models:", err));
-      
     const pendingQuery = localStorage.getItem("seabot-pending-workflow");
     if (pendingQuery) {
       setInput(pendingQuery);
       localStorage.removeItem("seabot-pending-workflow");
       setTimeout(() => { document.getElementById("studio-submit-btn")?.click(); }, 50);
     }
-    
-    const clickOut = (e: MouseEvent) => {
-       if (providerMenuRef.current && !providerMenuRef.current.contains(e.target as Node)) {
-          setShowProviderMenu(false);
-       }
-    };
-    document.addEventListener("mousedown", clickOut);
     
     // Check for Resume Session
     const resumeSessionId = localStorage.getItem('seabot-resume-session');
@@ -360,8 +183,6 @@ export function StudioView() {
            }
         }).catch(() => {});
     }
-    
-    return () => document.removeEventListener("mousedown", clickOut);
   }, []);
 
   // Sync to FileSystem Automatically when messages update
@@ -397,13 +218,15 @@ export function StudioView() {
     setInput("");
     setMessages(prev => [...prev, { role: "user", content: objective }]);
     setIsProcessing(true);
-    pushTerminalLog(`> INITIATING OBJECTIVE (${provider}): ${objective}`);
+    
+    const activeModel = localStorage.getItem("seabot-active-model") || "gemini:gemini-2.5-flash";
+    pushTerminalLog(`> INITIATING OBJECTIVE (${activeModel}): ${objective}`);
 
     try {
       const response = await fetch("/api/agent/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ objective, provider }), // Send exact provider mapping e.g openai:gpt-4o
+        body: JSON.stringify({ objective, provider: activeModel }), 
       });
 
       if (!response.body) throw new Error("No response body");
@@ -448,23 +271,6 @@ export function StudioView() {
     }
   };
 
-  const getProviderName = () => {
-     for (const group of modelDirectory) {
-        for (const mod of group.models) {
-           if (mod.id === provider) return mod.name;
-        }
-     }
-     return "Select Model";
-  };
-
-  const filteredDirectory = modelDirectory.map(group => ({
-      ...group,
-      models: group.models.filter(m => 
-          m.name.toLowerCase().includes(modelSearch.toLowerCase()) || 
-          m.id.toLowerCase().includes(modelSearch.toLowerCase())
-      )
-  })).filter(group => group.models.length > 0);
-
   return (
     <div className="flex flex-col md:flex-row w-full h-full bg-[#0A0A0A] font-sans overflow-hidden text-[#ededed]">
       
@@ -472,57 +278,10 @@ export function StudioView() {
       <div className={`flex w-full flex-1 flex-col bg-[#111] h-full transition-all duration-300`}>
         
         {/* Chat Header */}
-        <div className="h-[46px] border-b border-[#222] px-4 flex items-center justify-between bg-[#111] shrink-0 relative" ref={providerMenuRef}>
+        <div className="h-[46px] border-b border-[#222] px-4 flex items-center justify-between bg-[#111] shrink-0 relative">
           <div className="flex items-center gap-2">
             <Bot className="w-4 h-4 text-blue-400" />
             <span className="font-medium text-[#ededed] text-[13px]">Agent Organizer</span>
-          </div>
-          <div className="flex items-center gap-2">
-             <div 
-                 onClick={() => setShowProviderMenu(!showProviderMenu)}
-                 className="flex items-center gap-1.5 text-[10px] font-bold text-[#ededed] px-2 py-1 border border-[#333] rounded-md hover:bg-white/5 cursor-pointer bg-[#161616]"
-              >
-                <Server className="w-3 h-3 text-blue-400" />
-                {getProviderName()}
-             </div>
-             {showProviderMenu && (
-                <div className="absolute top-10 right-4 w-64 md:w-72 bg-[#161616] border border-[#333] rounded-md shadow-2xl z-50 flex flex-col max-h-[60vh]">
-                  <div className="px-3 pt-3 pb-2 border-b border-[#222] shrink-0">
-                     <div className="text-[10px] font-bold text-[#555] uppercase tracking-wider mb-2">Select Gateway Model</div>
-                     <input 
-                        type="text" 
-                        placeholder="Search 250+ models..."
-                        value={modelSearch}
-                        onChange={e => setModelSearch(e.target.value)}
-                        className="w-full bg-[#111] border border-[#333] hover:border-[#444] text-[#ededed] text-[11px] px-2.5 py-1.5 rounded outline-none focus:border-blue-500 custom-scrollbar"
-                     />
-                  </div>
-                  <div className="overflow-y-auto custom-scrollbar p-0 py-2">
-                    {filteredDirectory.length === 0 && <div className="text-[#555] text-[11px] text-center py-4">No models found...</div>}
-                    {filteredDirectory.map((group) => (
-                        <div key={group.provider} className="mb-2">
-                           <div className="px-3 py-1.5 text-[11px] font-bold text-[#888]">{group.provider}</div>
-                           {group.models.map(mod => (
-                              <button 
-                                key={mod.id} 
-                                onClick={() => { 
-                                  setProvider(mod.id); 
-                                  setShowProviderMenu(false); 
-                                  setModelSearch(""); 
-                                  localStorage.setItem("seabot-active-model", mod.id);
-                                  localStorage.setItem("seabot-active-model-name", mod.name);
-                                }} 
-                                className={`w-full text-left px-4 py-1.5 text-[12px] flex items-center justify-between hover:bg-blue-500/10 transition-colors ${provider === mod.id ? 'text-blue-400 bg-blue-500/5' : 'text-[#ccc]'}`}
-                              >
-                                 <span className="truncate pr-2">{mod.name}</span>
-                                 {mod.badge && <span className={`text-[9px] px-1.5 py-0.5 rounded shrink-0 ${mod.badge === 'Fast' ? 'bg-green-500/20 text-green-400' : mod.badge === 'Smart' ? 'bg-purple-500/20 text-purple-400' : mod.badge === 'Free' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-medium tracking-wide' : 'bg-blue-500/20 text-blue-400'}`}>{mod.badge}</span>}
-                              </button>
-                           ))}
-                        </div>
-                    ))}
-                  </div>
-                </div>
-              )}
           </div>
         </div>
 
