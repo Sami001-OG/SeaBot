@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Sidebar } from "./components/Sidebar";
-import { SetupTerminalView } from "./views/SetupTerminalView";
+import { TerminalBootView } from "./views/TerminalBootView";
 import { SettingsView } from "./views/SettingsView";
 import { StudioView } from "./views/StudioView";
 import { ChannelsView } from "./views/ChannelsView";
@@ -82,19 +82,6 @@ function LogsView() {
 
 export default function App() {
   const [currentView, setCurrentView] = useState('chat');
-  const [isConfigured, setIsConfigured] = useState(false);
-
-  useEffect(() => {
-    const configured = localStorage.getItem("seabot-configured");
-    if (configured) setIsConfigured(true);
-  }, []);
-
-  if (!isConfigured) {
-    return <SetupTerminalView onComplete={() => {
-      localStorage.setItem("seabot-configured", "true");
-      setIsConfigured(true);
-    }} />
-  }
 
   const renderView = () => {
     switch (currentView) {

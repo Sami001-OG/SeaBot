@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 import readline from 'readline';
-import fs from 'fs';
-import path from 'path';
 import { spawn } from 'child_process';
+import http from 'http';
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -11,75 +10,93 @@ const rl = readline.createInterface({
 
 const ask = (q) => new Promise(resolve => rl.question(q, resolve));
 
+function checkServerReady() {
+  return new Promise((resolve) => {
+    const req = http.get('http://127.0.0.1:3000/api/health', (res) => {
+      if (res.statusCode === 200) resolve(true);
+      else resolve(false);
+    });
+    req.on('error', () => resolve(false));
+    req.end();
+  });
+}
+
+function streamAgent(objective) {
+  return new Promise((resolve, reject) => {
+    const req = http.request('http://127.0.0.1:3000/api/agent/stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }, (res) => {
+      res.on('data', (chunk) => {
+        const lines = chunk.toString().split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(5));
+              if (data.type === 'thought' || data.type === 'action' || data.type === 'observation') {
+                 console.log(`\x1b[90m[${data.type.toUpperCase()}]\x1b[0m \x1b[36m${data.content.trim()}\x1b[0m`);
+              } else if (data.type === 'reflection') {
+                 console.log(`\n\x1b[32mAgent: ${data.content}\x1b[0m\n`);
+                 resolve();
+              } else if (data.type === 'error') {
+                 console.log(`\x1b[31m[ERROR] ${data.content}\x1b[0m`);
+                 resolve();
+              }
+            } catch (e) {}
+          }
+        }
+      });
+      res.on('end', () => resolve());
+    });
+    
+    req.on('error', (e) => reject(e));
+    req.write(JSON.stringify({ objective, provider: 'gemini' }));
+    req.end();
+  });
+}
+
 async function run() {
   console.clear();
-  const args = process.argv.slice(2);
-
-  if (!args.includes('onboard') || !args.includes('--install-daemon')) {
-    console.log(`
-  🌊 SeaBot CLI
+  console.log(`\x1b[36m
+  🌊 SeaBot Agent CLI v2.0
   ===========================================
-  Usage: seabot onboard --install-daemon
-    Starts the daemon setup wizard and configures
-    the model providers, Node runtime, and Gateway.
-    `);
+  Welcome to the Native Command Line Interface.
+  Type your prompt to converse with the agent.
+  Type 'exit' or 'quit' to close.
+  \x1b[0m`);
+
+  const serverReady = await checkServerReady();
+  if (!serverReady) {
+    console.log(`\x1b[33m[WARN] Local Gateway Server is not running on port 3000.\x1b[0m`);
+    console.log(`Start it via Web UI or run 'npm run dev' in another terminal.\n`);
     rl.close();
     return;
   }
 
-  console.log(`
-  🌊 SeaBot Setup Wizard (Daemon Installer)
-  ===========================================
-  `);
+  const loop = async () => {
+    const input = await ask('\x1b[32mYou >\x1b[0m ');
+    if (input.toLowerCase() === 'exit' || input.toLowerCase() === 'quit') {
+      rl.close();
+      return;
+    }
+    
+    if (input.trim() === '') {
+       loop();
+       return;
+    }
 
-  const keys = {};
+    try {
+      await streamAgent(input);
+    } catch (e) {
+      console.log(`\x1b[31mConnection Error: Could not reach agent backend.\x1b[0m`);
+    }
 
-  const runtime = await ask('Configure Node.js Runtime Path [default: /usr/local/bin/node]: ');
-  keys['NODE_RUNTIME_PATH'] = runtime || '/usr/local/bin/node';
+    loop();
+  };
 
-  console.log('\nSupported Providers: openai, anthropic, gemini, xai, mistral, groq, cerebras, openrouter, huggingface, nvidia, together, moonshot, qianfan, qwen, volcengine, byteplus, xiaomi, vercel, cloudflare, stepfun, venice, kilocode, minimax, copilot');
-  const provider = await ask('Select Model Provider [default: gemini]: ');
-  const selectedProvider = (provider || 'gemini').toUpperCase();
-  keys['PRIMARY_PROVIDER'] = selectedProvider;
-
-  const apiKey = await ask(`Enter API Key for ${selectedProvider} (Supports rotation variables e.g., ${selectedProvider}_API_KEYS, OPENCLAW_LIVE_${selectedProvider}_KEY) [skip]: `);
-  if (apiKey) {
-    keys[`${selectedProvider}_API_KEY`] = apiKey;
-  }
-
-  const port = await ask('Configure Gateway Port [default: 18789]: ');
-  keys['GATEWAY_PORT'] = port || '18789';
-
-  console.log(`\nVerifying Gateway Daemon on port ${keys['GATEWAY_PORT']}...`);
-  await new Promise(r => setTimeout(r, 1000));
-  console.log('[SUCCESS] Gateway daemon verified.');
-
-  console.log('Saving configuration...');
-
-  let envData = '\n';
-  for (const [k, v] of Object.entries(keys)) {
-    if (v && v.trim()) envData += `${k}=${v.trim()}\n`;
-  }
-
-  const envPath = path.join(process.cwd(), '.env');
-  try {
-    fs.appendFileSync(envPath, envData);
-    console.log('[SUCCESS] Configuration saved to .env file.');
-  } catch (err) {
-    console.error('[ERROR] Failed to save .env file.', err.message);
-  }
-
-  console.log('\n[STARTING] Redirecting and launching SeaBot Web Dashboard on localhost...\n');
-  rl.close();
-
-  const child = spawn('npm', ['run', 'dev'], { 
-    stdio: 'inherit', 
-    shell: true 
-  });
-
-  child.on('error', (err) => {
-    console.error('Failed to start SeaBot Dev Server:', err);
-  });
+  loop();
 }
 
 run();

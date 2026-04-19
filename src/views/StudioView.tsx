@@ -498,6 +498,7 @@ export function StudioView() {
       }
     } catch (err: any) {
       setMessages(prev => [...prev, { role: "agent", content: `Gateway connection failed: ${err.message}` }]);
+      pushTerminalLog(`[API GATEWAY ERROR] ${err.message}`);
     } finally {
       setIsProcessing(false);
     }
