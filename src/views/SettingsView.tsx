@@ -148,6 +148,7 @@ const INITIAL_MODEL_DIRECTORY = [
 
 export function SettingsView() {
   const [config, setConfig] = useState<Record<string, string>>({});
+  const [modelDirectory, setModelDirectory] = useState(INITIAL_MODEL_DIRECTORY);
   const [isSaving, setIsSaving] = useState(false);
   const [savedStatus, setSavedStatus] = useState<string | null>(null);
   const [activeModel, setActiveModel] = useState<string>("gemini:gemini-2.5-flash");
@@ -163,6 +164,39 @@ export function SettingsView() {
     
     const savedModel = localStorage.getItem("seabot-active-model");
     if (savedModel) setActiveModel(savedModel);
+
+    // Fetch OpenRouter models dynamically
+    fetch('https://openrouter.ai/api/v1/models')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.data) {
+           const openRouterModels = data.data.map((m: any) => {
+              const isFree = m.pricing && m.pricing.prompt === "0" && m.pricing.completion === "0";
+              return {
+                 id: `openrouter:${m.id}`,
+                 name: m.name,
+                 badge: isFree ? "Free" : undefined
+              };
+           });
+           
+           const freeModels = openRouterModels.filter((m: any) => m.badge === "Free");
+           const paidModels = openRouterModels.filter((m: any) => m.badge !== "Free");
+
+           setModelDirectory(prev => {
+              // Create a clean base without the placeholder OR any previously fetched dynamic models 
+              // (this prevents duplicate keys when Strict Mode double-invokes the useEffect)
+              const base = prev.filter(g => 
+                 g.provider !== "OpenRouter" && 
+                 g.provider !== "OpenRouter (Free)" && 
+                 g.provider !== "OpenRouter (Paid)"
+              );
+
+              base.push({ provider: "OpenRouter (Free)", models: freeModels });
+              base.push({ provider: "OpenRouter (Paid)", models: paidModels });
+              return base;
+           });
+        }
+      }).catch(console.error);
   }, []);
 
   const handleChange = (key: string, value: string) => {
@@ -377,7 +411,7 @@ export function SettingsView() {
               onChange={handleModelChange}
               className="w-full bg-bg-base border border-border-default rounded-md px-3 py-2 text-sm text-white focus:border-accent focus:ring-1 focus:ring-accent outline-none"
             >
-              {INITIAL_MODEL_DIRECTORY.map(group => (
+              {modelDirectory.map(group => (
                 <optgroup key={group.provider} label={group.provider}>
                   {group.models.map(mod => (
                     <option key={mod.id} value={mod.id}>{mod.name} {mod.badge ? `(${mod.badge})` : ''}</option>

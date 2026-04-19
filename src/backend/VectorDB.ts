@@ -1,9 +1,8 @@
 import fs from "fs/promises";
 import path from "path";
 import { GoogleGenAI } from "@google/genai";
+import { ModelRouter } from "./ModelRouter.js";
 
-// Ensure we have access to Gemini for embeddings
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const DB_DIR = path.resolve(process.cwd(), ".nexus");
 const DB_PATH = path.join(DB_DIR, "vectors.json");
 
@@ -18,6 +17,12 @@ export interface MemoryEntry {
 export class VectorDB {
   private entries: MemoryEntry[] = [];
   private initialized = false;
+
+  private getClient(): GoogleGenAI {
+    const key = ModelRouter.getEnv('GEMINI_API_KEY');
+    if (!key) throw new Error("Missing GEMINI_API_KEY for embeddings.");
+    return new GoogleGenAI({ apiKey: key });
+  }
 
   async init() {
     if (this.initialized) return;
@@ -38,6 +43,7 @@ export class VectorDB {
   async store(content: string, tags: string[] = []) {
     await this.init();
     try {
+      const ai = this.getClient();
       const resp = await ai.models.embedContent({
         model: "text-embedding-004",
         contents: content,
@@ -56,7 +62,7 @@ export class VectorDB {
       await this.save();
       return true;
     } catch (e: any) {
-      console.error("Vector DB Embedding error:", e);
+      console.error("Vector DB Embedding error:", e.message);
       return false;
     }
   }
@@ -66,6 +72,7 @@ export class VectorDB {
     if (this.entries.length === 0) return [];
 
     try {
+      const ai = this.getClient();
       const resp = await ai.models.embedContent({
         model: "text-embedding-004", 
         contents: query,
@@ -86,7 +93,7 @@ export class VectorDB {
       scored.sort((a, b) => b.score - a.score);
       return scored.slice(0, topK);
     } catch (e: any) {
-         console.error("Vector DB Search error:", e);
+         console.error("Vector DB Search error:", e.message);
          return [];
     }
   }
