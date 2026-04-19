@@ -262,6 +262,7 @@ function InteractivePreview({ inline, className, children }: any) {
 
 export function StudioView() {
   const [mobilePane, setMobilePane] = useState<'explorer' | 'editor' | 'chat'>('chat');
+  const [showWorkspace, setShowWorkspace] = useState(false); // Controls desktop code/storage visibility
 
   // === FS Explorer State ===
   const [currentPath, setCurrentPath] = useState("");
@@ -538,7 +539,7 @@ export function StudioView() {
       </div>
 
       {/* 1. LEFT PANE: EXPLORER */}
-      <div className={`${mobilePane === 'explorer' ? 'flex' : 'hidden'} md:flex w-full md:w-[220px] lg:w-[260px] border-r border-[#222] flex-col bg-[#111111] shrink-0 h-full`}>
+      <div className={`${mobilePane === 'explorer' ? 'flex' : 'hidden'} ${showWorkspace ? 'md:flex' : 'md:hidden'} w-full md:w-[220px] lg:w-[260px] border-r border-[#222] flex-col bg-[#111111] shrink-0 h-full`}>
         <div className="h-[46px] border-b border-[#222] flex items-center px-4 text-[11px] font-bold text-[#888] uppercase tracking-wider justify-between bg-[#111] shrink-0">
           <div className="flex items-center gap-2"><Folder className="w-3.5 h-3.5" /> EXPLORER</div>
           <button onClick={() => loadDirectory(currentPath)}><RefreshCw className="w-3.5 h-3.5 hover:text-white transition-colors" /></button>
@@ -575,7 +576,7 @@ export function StudioView() {
       </div>
 
       {/* 2. CENTER PANE: EDITOR & TERMINAL */}
-      <div className={`${mobilePane === 'editor' ? 'flex' : 'hidden'} md:flex flex-1 flex-col border-r border-[#222] min-w-0 bg-[#0A0A0A] h-full`}>
+      <div className={`${mobilePane === 'editor' ? 'flex' : 'hidden'} ${showWorkspace ? 'md:flex' : 'md:hidden'} flex-1 flex-col border-r border-[#222] min-w-0 bg-[#0A0A0A] h-full`}>
         
         {/* Code Editor Area */}
         <div className="flex-1 flex flex-col min-h-0 relative">
@@ -642,15 +643,22 @@ export function StudioView() {
       </div>
 
       {/* 3. RIGHT PANE: AGENT CHAT (Command Center) */}
-      <div className={`${mobilePane === 'chat' ? 'flex' : 'hidden'} md:flex w-full md:w-[320px] lg:w-[380px] flex-col bg-[#111] shrink-0 h-full`}>
+      <div className={`${mobilePane === 'chat' ? 'flex' : 'hidden'} md:flex w-full ${showWorkspace ? 'md:w-[320px] lg:w-[380px] shrink-0' : 'flex-1'} flex-col bg-[#111] h-full transition-all duration-300`}>
         
         {/* Chat Header */}
         <div className="h-[46px] border-b border-[#222] px-4 flex items-center justify-between bg-[#111] shrink-0 relative" ref={providerMenuRef}>
           <div className="flex items-center gap-2">
             <Bot className="w-4 h-4 text-blue-400" />
-            <span className="font-medium text-[#ededed] text-[13px]">Agent Operator</span>
+            <span className="font-medium text-[#ededed] text-[13px]">Agent Organizer</span>
           </div>
-          <div>
+          <div className="flex items-center gap-2">
+             <button
+               onClick={() => setShowWorkspace(!showWorkspace)}
+               className="hidden md:flex items-center gap-1.5 text-[10px] font-bold text-[#888] hover:text-[#ededed] px-2 py-1 border border-[#333] rounded-md hover:bg-white/5 transition-colors bg-[#161616]"
+             >
+               <Code className="w-3 h-3" />
+               {showWorkspace ? "Hide Code & Storage" : "Show Code & Storage"}
+             </button>
              <div 
                  onClick={() => setShowProviderMenu(!showProviderMenu)}
                  className="flex items-center gap-1.5 text-[10px] font-bold text-[#ededed] px-2 py-1 border border-[#333] rounded-md hover:bg-white/5 cursor-pointer bg-[#161616]"
